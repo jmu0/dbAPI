@@ -1,2 +1,3 @@
 # dbAPI
-Create API (rest/graphql) based on database model
+Create API (rest/graphql)
+Read model from database
