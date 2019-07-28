@@ -1,4 +1,4 @@
-package mysqlAPI
+package mysql
 
 import (
 	"database/sql"
