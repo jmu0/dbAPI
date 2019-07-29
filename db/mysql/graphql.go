@@ -457,7 +457,7 @@ func resolveFuncOneToMany(tbl, cols string) func(params graphql.ResolveParams) (
 					if len(where) > 0 {
 						where += " and "
 					}
-					where += c + "='" + val.(string) + "'"
+					where += c + "='" + Escape(val.(string)) + "'"
 				}
 			}
 		}
@@ -491,7 +491,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string) func(params graphql.Reso
 					if len(where) > 0 {
 						where += " and "
 					}
-					where += c + "='" + val.(string) + "'"
+					where += c + "='" + Escape(val.(string)) + "'"
 				}
 			}
 		}
