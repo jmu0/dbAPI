@@ -148,14 +148,19 @@ func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Reques
 	if err != nil {
 		log.Println("REST: ERROR: POST:", dbName, tblName, err)
 	}
+
 	//set column values
-	for key, value := range data {
-		index := findColIndex(key, cols)
+	values2columns(&cols, data)
+	return cols
+}
+
+func values2columns(cols *[]Column, values map[string]interface{}) {
+	for key, value := range values {
+		index := findColIndex(key, *cols)
 		if index > -1 {
-			cols[index].Value = value
+			(*cols)[index].Value = Escape(value.(string))
 		}
 	}
-	return cols
 }
 
 func cols2json(table string, cols []Column) ([]byte, error) {
@@ -209,12 +214,12 @@ func writeQueryResults(db *sql.DB, q string, w http.ResponseWriter) {
 }
 
 //getRequestData get data from post request
-func getRequestData(req *http.Request) (map[string]string, error) {
+func getRequestData(req *http.Request) (map[string]interface{}, error) {
 	err := req.ParseForm()
 	if err != nil {
-		return make(map[string]string), err
+		return make(map[string]interface{}), err
 	}
-	res := make(map[string]string)
+	res := make(map[string]interface{})
 	for k, v := range req.Form {
 		res[k] = strings.Join(v, "")
 	}
@@ -256,35 +261,6 @@ func Escape(str string) string {
 	str = strings.Replace(str, "*/", "", -1)
 	return str
 }
-
-/*
-//ToMap database object to map
-func ToMap(obj DbObject) map[string]interface{} {
-	cols := obj.GetColumns()
-	m := make(map[string]interface{})
-	for _, col := range cols {
-		m[col.Field] = col.Value
-	}
-	return m
-}
-
-//ToMapSlice database objects to slice of maps
-func ToMapSlice(slice []DbObject) []map[string]interface{} {
-	ret := make([]map[string]interface{}, 0)
-	for _, obj := range slice {
-		ret = append(ret, ToMap(obj))
-	}
-	return ret
-}
-
-//Save database object using statement
-func Save(obj DbObject) (int, error) {
-	dbName, tblName := obj.GetDbInfo()
-	cols := obj.GetColumns()
-	n, _, err := save(dbName, tblName, cols)
-	return n, err
-}
-//*/
 
 //save can be used by HandleREST and DbObject
 func save(dbName string, tblName string, cols []Column) (int, int, error) {
@@ -349,50 +325,6 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 	// fmt.Println("REST: DEBUG: save result n:", n, "id:", id)
 	return int(n), int(id), nil
 }
-
-/*
-//SaveQuery (DEPRECATED) Save database object to database (insert or update) using insert query
-func SaveQuery(obj DbObject) (int, error) {
-	dbName, tblName := obj.GetDbInfo()
-	cols := obj.GetColumns()
-	db, err := Connect()
-	if err != nil {
-		return 1, err
-	}
-	defer db.Close()
-	query := "insert into " + dbName + "." + tblName + " "
-	fields := "("
-	values := "("
-	update := ""
-	for i, c := range cols {
-		if len(fields) > 1 && i < len(cols) {
-			fields += ", "
-			values += ", "
-			update += ", "
-		}
-		fields += c.Field
-		values += valueString(c.Value)
-		update += c.Field + "=" + valueString(c.Value)
-
-	}
-	fields += ") "
-	values += ") "
-	query += fields + " values " + values
-	query += " on duplicate key update " + update
-	_, err = db.Exec(query)
-	if err != nil {
-		return 1, err
-	}
-	return 0, nil
-}
-
-//Delete database object from database
-func Delete(obj DbObject) (int, error) {
-	dbName, tblName := obj.GetDbInfo()
-	cols := obj.GetColumns()
-	return delete(dbName, tblName, cols)
-}
-//*/
 
 //delete can be used by HandleREST and DbObject
 func delete(dbName string, tblName string, cols []Column) (int, error) {
@@ -461,6 +393,7 @@ func skipDb(name string) bool {
 		"mysql",
 		"performance_schema",
 		"owncloud",
+		"nextcloud",
 		"roundcubemail",
 	}
 	for _, s := range skip {
@@ -520,6 +453,50 @@ type Column struct {
 	Value   interface{}
 }
 
+//GetRelationships gets relationships for table
+func GetRelationships(db *sql.DB, dbName string, tableName string) ([]Relationship, error) {
+	var ret []Relationship
+	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
+			group_concat(column_name separator ", ") as fromCols,
+			concat(referenced_table_schema, ".", referenced_table_name) as toTbl, 
+			group_concat(referenced_column_name separator ", ") as toCols
+			from (select constraint_name, table_schema,table_name,column_name,referenced_table_schema,referenced_table_name, 
+			referenced_column_name from information_schema.key_column_usage
+			where (referenced_table_schema="` + dbName + `" and referenced_table_name="` + tableName + `") 
+			or (table_schema="` + dbName + `" and table_name="` + tableName + `")
+			and constraint_name <> "PRIMARY"
+			) as relations group by fromTbl, toTbl`
+	// log.Println("DEBUG:", query)
+	res, err := Query(db, query)
+	if err != nil {
+		return ret, err
+	}
+	for _, r := range res {
+		var rel = Relationship{
+			FromTable: r["fromTbl"].(string),
+			FromCols:  r["fromCols"].(string),
+			ToTable:   r["toTbl"].(string),
+			ToCols:    r["toCols"].(string),
+		}
+		if rel.FromTable == dbName+"."+tableName {
+			rel.Cardinality = "many-to-one"
+		} else if rel.ToTable == dbName+"."+tableName {
+			rel.Cardinality = "one-to-many"
+		}
+		ret = append(ret, rel)
+	}
+	return ret, nil
+}
+
+//Relationship between tables
+type Relationship struct {
+	FromTable   string
+	FromCols    string
+	ToTable     string
+	ToCols      string
+	Cardinality string
+}
+
 //GetType find out go data type for database data type
 func GetType(t string) string {
 	//TODO: more datatypes
@@ -549,190 +526,6 @@ func setAutoIncColumn(id int, cols []Column) []Column {
 	return cols
 }
 
-/*
-//find out if the class has int columns, then it neets strconv import
-func hasIntColumns(cols []Column) bool {
-	for _, c := range cols {
-		if GetType(c.Type) == "int" {
-			return true
-		}
-	}
-	return false
-}
-
-//CreateObject create object from db/table
-func CreateObject(db *sql.DB, dbName, tblName string) error {
-	var code string
-	var importPrefix = "github.com/jmu0/orm/"
-	cols := GetColumns(db, dbName, tblName)
-
-	code += "package " + strings.ToLower(tblName) + "\n\n"
-	code += "import (\n\t\"" + importPrefix + "dbmodel\"\n"
-	code += "\t\"errors\"\n"
-	if hasIntColumns(cols) {
-		code += "\t\"strconv\"\n"
-	}
-	code += ")\n\n"
-	code += "type " + tblName + " struct {\n"
-	for _, col := range cols {
-		code += "\t" + strings.ToUpper(col.Field[:1]) + col.Field[1:] + " " + GetType(col.Type) + "\n"
-	}
-	code += "}\n\n"
-	code += "func (" + strings.ToLower(tblName[:1]) + " *" + tblName + ") GetDbInfo() (dbName string, tblName string) {\n"
-	code += "\treturn \"" + dbName + "\", \"" + tblName + "\"\n"
-	code += "}\n\n"
-	code += strGetQueryFunction(cols, dbName, tblName)
-	code += strGetSaveFunction(cols, dbName, tblName)
-	code += strGetDeleteFunction(cols, dbName, tblName)
-	code += strGetGetFunction(cols, tblName)
-	code += strGetSetFunction(cols, tblName)
-	code += strGetColsFunction(cols, tblName)
-
-	//Write to file
-	folder := strings.ToLower(dbName) + "/" + strings.ToLower(tblName)
-	err := os.MkdirAll(folder, 0770)
-	if err != nil {
-		log.Fatal(err)
-	}
-	path := folder + "/" + strings.ToLower(tblName) + ".go"
-	file, err := os.Create(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	_, err = file.WriteString(code)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return nil
-}
-
-func strGetColsFunction(c []Column, tblName string) string {
-	var ret string
-	ret = "func (" + strings.ToLower(tblName[:1]) + " *" + tblName + ") GetColumns() []dbmodel.Column {\n"
-	ret += "\treturn []dbmodel.Column{\n"
-	for _, col := range c {
-		ret += "\t\t{\n"
-		ret += "\t\t\tField:\"" + col.Field + "\",\n"
-		ret += "\t\t\tType:\"" + col.Type + "\",\n"
-		ret += "\t\t\tNull:\"" + col.Null + "\",\n"
-		ret += "\t\t\tKey:\"" + col.Key + "\",\n"
-		ret += "\t\t\tDefault:\"" + col.Default + "\",\n"
-		ret += "\t\t\tExtra:\"" + col.Extra + "\",\n"
-		ret += "\t\t\tValue: " + strings.ToLower(tblName)[:1] + "."
-		ret += strings.ToUpper(col.Field[:1]) + col.Field[1:] + ",\n"
-		ret += "\t\t},\n"
-	}
-	ret += "\t}\n"
-	ret += "}\n\n"
-	return ret
-}
-
-func strGetSetFunction(c []Column, tblName string) string {
-	var ret string
-	var letter = strings.ToLower(tblName[:1])
-	ret = "func (" + letter + " *" + tblName + ") Set(key string, value interface{}) error {\n"
-	if hasIntColumns(c) {
-		ret += "\tvar err error\n"
-	}
-	ret += "\tif  value == nil {\n"
-	ret += "\t\treturn errors.New(\"value for \" + key + \" is nil\")\n"
-	ret += "\t}\n"
-	ret += "\tswitch key {\n"
-	for _, col := range c {
-		ret += "\tcase \"" + col.Field + "\":\n" //TODO: capitalize fields
-		if GetType(col.Type) == "int" {
-			ret += "\t\t" + letter + "."
-			ret += strings.ToUpper(col.Field[:1]) + col.Field[1:]
-			ret += ", err = strconv.Atoi(value.(string))\n"
-			ret += "\t\tif err != nil && value != \"NULL\" {\n"
-			ret += "\t\t\treturn err\n"
-			ret += "\t\t}\n"
-		} else {
-			ret += "\t\t" + letter + "." + strings.ToUpper(col.Field[:1]) + col.Field[1:] + " = value.(string)\n"
-		}
-		ret += "\t\treturn nil\n"
-	}
-	ret += "\tdefault:\n"
-	ret += "\t\treturn errors.New(\"Key not found:\" + key)\n"
-	ret += "\t}\n"
-	ret += "}\n\n"
-	return ret
-}
-
-func strGetGetFunction(c []Column, tblName string) string {
-	var ret string
-	var letter = strings.ToLower(tblName[:1])
-	ret = "func (" + letter + " *" + tblName + ") Get(key string) (dbmodel.Column, error) {\n"
-	ret += "\tfor _, col := range " + letter + ".GetColumns() {\n"
-	ret += "\t\tif col.Field == key {\n"
-	ret += "\t\t\treturn col, nil\n"
-	ret += "\t\t}\n"
-	ret += "\t}\n"
-	ret += "\treturn dbmodel.Column{}, errors.New(\"Key not found:\" + key)\n"
-	ret += "}\n\n"
-	return ret
-}
-
-func strGetSaveFunction(c []Column, dbName string, tblName string) string {
-	var ret string
-	ret = "func (" + strings.ToLower(tblName[:1]) + " *" + tblName + ") Save() (Nr int, err error) {\n"
-	ret += "\treturn dbmodel.Save(" + strings.ToLower(tblName[:1]) + ")\n"
-	ret += "}\n\n"
-	return ret
-}
-
-func strGetDeleteFunction(c []Column, dbName string, tblName string) string {
-	var ret string
-	ret = "func (" + strings.ToLower(tblName[:1]) + " *" + tblName + ") Delete() (Nr int, err error) {\n"
-	ret += "\treturn dbmodel.Delete(" + strings.ToLower(tblName[:1]) + ")\n"
-	ret += "}\n\n"
-	return ret
-}
-
-func strGetQueryFunction(cols []Column, dbName string, tblName string) string {
-	//TODO: with this code integer fields cannot be null. change to check for ""
-	var ret string
-	ret = "func Query(where string, orderby string) ([]" + tblName + ", error) {\n"
-	ret += "\tquery := \"select * from " + dbName + "." + tblName + "\"\n"
-	ret += "\tif len(where) > 0 {\n\t\tquery += \" where \" + where\n\t}\n"
-	ret += "\tif len(orderby) > 0 {\n\t\tquery += \" order by \" + orderby\n\t}\n"
-	ret += "\tret := []" + tblName + "{}\n"
-	ret += "\tdb, err := dbmodel.Connect()\n"
-	ret += "\tdefer db.Close()\n"
-	ret += "\tif err != nil {\n\t\treturn ret, err\n\t}\n"
-	ret += "\tres,err := dbmodel.Query(db, query)\n"
-	ret += "\tif err != nil {\n\t\treturn ret, err\n\t}\n"
-	ret += "\tfor _, r := range res {\n"
-	if hasIntColumns(cols) {
-		ret += "\t\tvar err error\n"
-	}
-	ret += "\t\tobj := " + tblName + "{}\n"
-	for _, c := range cols {
-		tp := GetType(c.Type)
-		if tp == "int" {
-			// ret += "\t\tobj." + strings.ToUpper(c.Field[:1]) + c.Field[1:] + " = "
-			// ret += "r[\"" + c.Field + "\"].(int)\n"
-			ret += "\t\tobj." + strings.ToUpper(c.Field[:1]) + c.Field[1:] + ", err = "
-			ret += "strconv.Atoi(r[\"" + c.Field + "\"].(string))\n"
-			ret += "\t\tif err != nil && r[\"" + c.Field + "\"] != \"NULL\" && r[\"" + c.Field + "\"] != \"\""
-			ret += " {\n\t\t\treturn ret, err\n\t\t}\n"
-		} else {
-			ret += "\t\tif r[\"" + c.Field + "\"] != nil {\n"
-			ret += "\t\t\tobj." + strings.ToUpper(c.Field[:1]) + c.Field[1:] + " = "
-			ret += "r[\"" + c.Field + "\"].(string)\n"
-			ret += "\t\t}\n"
-		}
-	}
-	ret += "\t\tret = append(ret, obj)\n"
-	ret += "\t}\n"
-	ret += "\tif len(ret) == 0 {\n\t\treturn ret, errors.New(\"No rows found\")\n\t}\n"
-	ret += "\treturn ret, nil\n"
-	ret += "}\n\n"
-	return ret
-}
-//*/
-
 //StrPrimaryKeyWhereSQL returns where part of query
 func StrPrimaryKeyWhereSQL(cols []Column) (string, error) {
 	var ret string
@@ -744,5 +537,19 @@ func StrPrimaryKeyWhereSQL(cols []Column) (string, error) {
 			ret += " " + c.Field + " = " + valueString(c.Value)
 		}
 	}
+	if len(ret) == 0 {
+		return "", errors.New("Primary key not found (StrPrimaryKeyWhereSQL")
+	}
 	return ret, nil
+}
+
+//PrimaryKeyCols filters primary key columns from []Column
+func PrimaryKeyCols(cols []Column) []Column {
+	var ret []Column
+	for _, c := range cols {
+		if c.Key == "PRI" {
+			ret = append(ret, c)
+		}
+	}
+	return ret
 }
