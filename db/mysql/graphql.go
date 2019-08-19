@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
@@ -25,7 +27,14 @@ var queryConfig = graphql.ObjectConfig{
 var err error
 var conn *sql.DB
 var dbm dbModel
-var queryCache map[string][]map[string]interface{}
+
+var queryCache map[string]qCache
+var mutex = &sync.RWMutex{}
+
+type qCache struct {
+	time    time.Time
+	results []map[string]interface{}
+}
 
 type dbModel struct {
 	tables map[string]dbTable
@@ -214,7 +223,11 @@ func getSchema() (graphql.Schema, error) {
 //HandleGQL serves graphql api
 func HandleGQL(schema *graphql.Schema, w http.ResponseWriter, r *http.Request) {
 	var query string
-	queryCache = make(map[string][]map[string]interface{})
+	mutex.Lock()
+	if queryCache == nil {
+		queryCache = make(map[string]qCache)
+	}
+	mutex.Unlock()
 	// log.Println("DEBUG:", r.Method)
 	if r.Method == "GET" {
 		query = r.URL.Query().Get("query")
@@ -420,7 +433,7 @@ func dbType2gqlType(dbtype string) graphql.Type {
 func resolveFunc(db, tbl string, cols []Column) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		var query string
-		var res []map[string]interface{}
+		var res qCache
 		var ok bool
 		var err error
 		query = "select * from " + db + "." + tbl
@@ -428,24 +441,34 @@ func resolveFunc(db, tbl string, cols []Column) func(params graphql.ResolveParam
 		if len(where) > 0 {
 			query += " where" + where
 		}
+		mutex.RLock()
 		if res, ok = queryCache[query]; ok {
-			// log.Println("CACHE:", query)
-			return res, nil
+			t := time.Now()
+			if t.Sub(res.time) < time.Second*10 {
+				// log.Println("QUERY FROM CACHE:", query)
+				mutex.RUnlock()
+				return res.results, nil
+			}
 		}
-		log.Println("QUERY:", query)
-		res, err = Query(conn, query)
+		mutex.RUnlock()
+		// log.Println("QUERY:", query)
+		res.results, err = Query(conn, query)
 		if err != nil {
 			return res, err
 		}
+		// log.Println("DEBUG results", res.results)
+		res.time = time.Now()
+		mutex.Lock()
 		queryCache[query] = res
-		return res, nil
+		mutex.Unlock()
+		return res.results, nil
 	}
 }
 
 func resolveFuncOneToMany(tbl, cols string) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		var query, where string
-		var res []map[string]interface{}
+		var res qCache
 		var err error
 		var ok bool
 
@@ -462,24 +485,34 @@ func resolveFuncOneToMany(tbl, cols string) func(params graphql.ResolveParams) (
 			}
 		}
 		query += where
+		mutex.RLock()
 		if res, ok = queryCache[query]; ok {
-			// log.Println("CACHE:", query)
-			return res, nil
+			t := time.Now()
+			if t.Sub(res.time) < time.Second*10 {
+				// log.Println("QUERY FROM CACHE:", query)
+				mutex.RUnlock()
+				return res.results, nil
+			}
 		}
-		res, err = Query(conn, query)
+		mutex.RUnlock()
+
+		res.results, err = Query(conn, query)
 		if err != nil {
 			return res, err
 		}
+		res.time = time.Now()
+		mutex.Lock()
 		queryCache[query] = res
-		log.Println("QUERY:", query)
-		return res, nil
+		mutex.Unlock()
+		// log.Println("QUERY:", query)
+		return res.results, nil
 	}
 }
 
 func resolveFuncManyToOne(tbl, fromCols, toCols string) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		var query, where string
-		var res []map[string]interface{}
+		var res qCache
 		var err error
 		var ok bool
 		query = "select * from " + tbl + " where "
@@ -496,21 +529,30 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string) func(params graphql.Reso
 			}
 		}
 		query += where
+		mutex.RLock()
 		if res, ok = queryCache[query]; ok {
-			// log.Println("CACHE:", query)
-			return res[0], nil
+			t := time.Now()
+			if t.Sub(res.time) < time.Second*10 {
+				// log.Println("QUERY FROM CACHE:", query)
+				mutex.RUnlock()
+				return res.results, nil
+			}
 		}
-		res, err = Query(conn, query)
+		mutex.RUnlock()
+		res.results, err = Query(conn, query)
 		if err != nil {
 			return nil, err
 		}
-		if len(res) == 0 {
+		if len(res.results) == 0 {
 			return nil, errors.New("Not found " + tbl + " " + fromCols + " / " + toCols)
 		}
+		res.time = time.Now()
+		mutex.Lock()
 		queryCache[query] = res
-		log.Println("QUERY:", query)
+		mutex.Unlock()
+		// log.Println("QUERY:", query)
 
-		return res[0], nil
+		return res.results[0], nil
 	}
 }
 
