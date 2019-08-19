@@ -29,6 +29,7 @@ func main() {
 			"Assortiment.Plant",
 			"Assortiment.Categorie",
 			"Assortiment.Voorraad",
+			"Assortiment.Prijslijst",
 		},
 		// Tables: []string{"Assortiment.Plant"},
 	})

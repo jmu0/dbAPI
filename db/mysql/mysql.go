@@ -434,8 +434,6 @@ func GetColumns(db *sql.DB, dbName string, tableName string) []Column {
 		for rows.Next() {
 			col = Column{}
 			rows.Scan(&col.Field, &col.Type, &col.Null, &col.Key, &col.Default, &col.Extra)
-			// fmt.Println("DEBUG:",rows)
-			// fmt.Println("DEBUG GetColumns:", col)
 			cols = append(cols, col)
 		}
 	}
