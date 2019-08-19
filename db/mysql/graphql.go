@@ -446,13 +446,13 @@ func resolveFunc(db, tbl string, cols []Column) func(params graphql.ResolveParam
 		if res, ok = queryCache[query]; ok {
 			t := time.Now()
 			if t.Sub(res.time) < time.Second*10 {
-				log.Println("QUERY FROM CACHE:", query)
+				// log.Println("QUERY FROM CACHE:", query)
 				mutex.RUnlock()
 				return res.results, nil
 			}
 		}
 		mutex.RUnlock()
-		log.Println("QUERY:", query)
+		// log.Println("QUERY:", query)
 		res.results, err = Query(conn, query)
 		if err != nil {
 			return res, err
