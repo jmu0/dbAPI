@@ -223,6 +223,7 @@ func getSchema() (graphql.Schema, error) {
 //HandleGQL serves graphql api
 func HandleGQL(schema *graphql.Schema, w http.ResponseWriter, r *http.Request) {
 	var query string
+	start := time.Now()
 	mutex.Lock()
 	if queryCache == nil {
 		queryCache = make(map[string]qCache)
@@ -261,7 +262,7 @@ func HandleGQL(schema *graphql.Schema, w http.ResponseWriter, r *http.Request) {
 		RequestString: query, //TODO: use GET or POST
 	})
 	// log.Println("DEBUG:queryCache:", len(queryCache))
-	log.Println("Serving graphql..")
+	log.Println("Served graphql in", time.Since(start))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(result)
 }
@@ -445,13 +446,13 @@ func resolveFunc(db, tbl string, cols []Column) func(params graphql.ResolveParam
 		if res, ok = queryCache[query]; ok {
 			t := time.Now()
 			if t.Sub(res.time) < time.Second*10 {
-				// log.Println("QUERY FROM CACHE:", query)
+				log.Println("QUERY FROM CACHE:", query)
 				mutex.RUnlock()
 				return res.results, nil
 			}
 		}
 		mutex.RUnlock()
-		// log.Println("QUERY:", query)
+		log.Println("QUERY:", query)
 		res.results, err = Query(conn, query)
 		if err != nil {
 			return res, err
