@@ -490,7 +490,7 @@ func resolveFuncOneToMany(tbl, cols string) func(params graphql.ResolveParams) (
 		if res, ok = queryCache[query]; ok {
 			t := time.Now()
 			if t.Sub(res.time) < time.Second*10 {
-				// log.Println("QUERY FROM CACHE:", query)
+				log.Println("QUERY FROM CACHE:", query)
 				mutex.RUnlock()
 				return res.results, nil
 			}
@@ -505,7 +505,7 @@ func resolveFuncOneToMany(tbl, cols string) func(params graphql.ResolveParams) (
 		mutex.Lock()
 		queryCache[query] = res
 		mutex.Unlock()
-		// log.Println("QUERY:", query)
+		log.Println("QUERY:", query)
 		return res.results, nil
 	}
 }
@@ -534,8 +534,9 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string) func(params graphql.Reso
 		if res, ok = queryCache[query]; ok {
 			t := time.Now()
 			if t.Sub(res.time) < time.Second*10 {
-				// log.Println("QUERY FROM CACHE:", query)
+				log.Println("QUERY FROM CACHE (many to one):", query)
 				mutex.RUnlock()
+				log.Println("DEBUG results query from cache:", res.results)
 				return res.results, nil
 			}
 		}
@@ -551,7 +552,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string) func(params graphql.Reso
 		mutex.Lock()
 		queryCache[query] = res
 		mutex.Unlock()
-		// log.Println("QUERY:", query)
+		log.Println("QUERY:", query)
 
 		return res.results[0], nil
 	}
