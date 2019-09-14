@@ -168,7 +168,7 @@ func HandleREST(pathPrefix string, w http.ResponseWriter, r *http.Request) strin
 				}
 			}
 			log.Println("POST:", r.URL.Path)
-			//log.Println("DEBUG:POST:", objParts)
+			// log.Println("DEBUG:POST:", rDB, rTBL, keys)
 			// log.Println("DEBUG POST:", cols)
 			// n, id, err := save(objParts[0], objParts[1], cols)
 			n, id, err := save(rDB, rTBL, cols)

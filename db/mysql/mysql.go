@@ -179,7 +179,7 @@ func cols2json(table string, cols []Column) ([]byte, error) {
 
 func findColIndex(field string, cols []Column) int {
 	for index, col := range cols {
-		if col.Field == field {
+		if strings.ToLower(col.Field) == strings.ToLower(field) {
 			return index
 		}
 	}
@@ -304,6 +304,7 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 	query += " on duplicate key update " + strUpdate
 	// log.Println("DEBUG SAVE query:", query)
 	insValues = append(insValues, updValues...)
+	log.Println("DEBUG: query:", query, " insValues:", insValues)
 	qr, err := db.Exec(query, insValues...)
 	// stmt, err := db.Prepare(query)
 	// if err != nil {
