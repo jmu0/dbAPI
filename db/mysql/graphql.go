@@ -419,7 +419,7 @@ func dbType2gqlType(dbtype string) graphql.Type {
 	//TODO: more datatypes
 	dataTypes := map[string]graphql.Type{
 		"varchar":  graphql.String,
-		"tinyint":  graphql.Boolean,
+		"tinyint":  graphql.Int,
 		"smallint": graphql.Int,
 		"datetime": graphql.String,
 		"int":      graphql.Int,
