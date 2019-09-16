@@ -29,7 +29,7 @@ func cols2form(cols []mysql.Column) string {
 		} else {
 			html += "text"
 		}
-		html += "\" name=\"" + col.Field + "\" data-key=\"" + col.Field + "\"  value=\"" + val + "\" /></td>\n"
+		html += "\" name=\"" + col.Field + "\" data-key=\"" + strings.ToLower(col.Field) + "\"  value=\"" + val + "\" /></td>\n"
 		html += "\t\t<td></td>\n"
 		html += "\t</tr>\n"
 	}
@@ -55,7 +55,7 @@ func cols2template(cols []mysql.Column) string {
 		} else {
 			html += "text"
 		}
-		html += "\" name=\"" + col.Field + "\" data-key=\"" + col.Field + "\" value=\"${{" + col.Field + "}}\" /></td>\n"
+		html += "\" name=\"" + col.Field + "\" data-key=\"" + strings.ToLower(col.Field) + "\" value=\"${{" + col.Field + "}}${{" + strings.ToLower(col.Field) + "}}\" /></td>\n"
 		html += "\t</tr>\n"
 	}
 	html += "</table>"
