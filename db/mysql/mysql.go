@@ -304,8 +304,9 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 	query += " on duplicate key update " + strUpdate
 	// log.Println("DEBUG SAVE query:", query)
 	insValues = append(insValues, updValues...)
-	log.Println("DEBUG: query:", query, " insValues:", insValues)
+	// log.Println("DEB:UG: query:", query, " insValues:", insValues)
 	qr, err := db.Exec(query, insValues...)
+	// log.Println("DEBUG:qr", qr, " err:", err)
 	// stmt, err := db.Prepare(query)
 	// if err != nil {
 	// 	return -1, -1, err
