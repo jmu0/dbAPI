@@ -1,15 +1,57 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/jmu0/dbAPI/api"
 	"github.com/jmu0/dbAPI/db/mysql"
+	"github.com/jmu0/dbAPI/db/postgresql"
 )
 
 var listenAddr = ":8282"
 
 func main() {
+	testMysql()
+	testPostgres()
+}
+
+func testPostgres() {
+	var pg = postgresql.Conn{}
+	err := pg.Connect(map[string]string{
+		"database": "test",
+		"hostname": "localhost",
+		"username": "jos",
+		"password": "jmu0!",
+	})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("\nSchema names in database:")
+	fmt.Println(pg.GetSchemaNames())
+	fmt.Println("\nTables in assortiment:")
+	fmt.Println(pg.GetTableNames("Assortiment"))
+}
+func testMysql() {
+	var d = mysql.Conn{}
+	err := d.Connect(map[string]string{
+		"hostname": "database",
+		"username": "web",
+		"password": "jmu0!",
+	})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("\nDatabases on server:")
+	fmt.Println(d.GetSchemaNames())
+	fmt.Println("\nTables in assortiment:")
+	fmt.Println(d.GetTableNames("Assortiment"))
+}
+
+func testGraphql() {
 	mx := http.NewServeMux()
 	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Test!"))
@@ -17,12 +59,12 @@ func main() {
 
 	//*
 	mx.HandleFunc("/data/", func(w http.ResponseWriter, r *http.Request) {
-		mysql.HandleREST("/data", w, r)
+		api.HandleREST("/data", w, r)
 	})
 	//*/
 
 	// schema, err := mysql.TestSchema()
-	schema, err := mysql.BuildSchema(mysql.BuildSchemaArgs{
+	schema, err := api.BuildSchema(api.BuildSchemaArgs{
 		Tables: []string{
 			"Assortiment.Artikel",
 			"Assortiment.Maat",
@@ -35,12 +77,13 @@ func main() {
 	})
 
 	if err != nil {
-		log.Println("Schema error:", err)
+		fmt.Println("Schema error:", err)
 	}
 	mx.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
-		mysql.HandleGQL(&schema, w, r)
+		api.HandleGQL(&schema, w, r)
 	})
 
-	log.Println("Listening on port", listenAddr)
+	fmt.Println("Listening on port", listenAddr)
 	log.Fatal(http.ListenAndServe(listenAddr, mx))
+
 }

@@ -1,10 +1,9 @@
 package db
 
-import "database/sql"
-
-type dbConn interface {
-	Connect(args map[string]string) (*sql.DB, error)
-	GetDatabaseNames() ([]string, error)
+//Conn interface
+type Conn interface {
+	Connect(args map[string]string) error
+	GetSchemaNames() ([]string, error)
 	GetTableNames(databaseName string) ([]string, error)
 	GetRelationships(databaseName string, tableName string) ([]Relationship, error)
 	GetColumns(databaseName, tableName string) ([]Column, error)
@@ -13,14 +12,14 @@ type dbConn interface {
 
 //Column holds column data
 type Column struct {
-	Field    string
-	Type     string
-	Length   int
-	Nullable bool
-	Key      string
-	Default  string
-	Extra    string
-	Value    interface{}
+	Field        string
+	Type         string
+	Length       int
+	Nullable     bool
+	PrimaryKey   bool
+	DefaultValue string
+	Extra        string
+	Value        interface{}
 }
 
 //Relationship between tables

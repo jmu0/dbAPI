@@ -1,4 +1,4 @@
-package mysql
+package api
 
 import (
 	"database/sql"
@@ -11,8 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	//used for connecting to datbase
-	// _ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 //TODO create interface, handle different db's (mysql, postgres)
@@ -25,9 +26,8 @@ func makeDSN(server, user, password string) string {
 }
 
 //Connect connect to database
-func Connect(args map[string]string) (*sql.DB, error) {
-
-	db, err := sql.Open("mysql", makeDSN(args["database"], args["username"], args["password"]))
+func Connect(args ...string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", makeDSN("database", "web", "jmu0!"))
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(0)
 	d, _ := time.ParseDuration("1 second")
@@ -41,7 +41,7 @@ func Connect(args map[string]string) (*sql.DB, error) {
 //DoQuery connects, queries and returns results
 func DoQuery(query string) ([]map[string]interface{}, error) {
 	var err error
-	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
+	db, err := Connect()
 	ret := make([]map[string]interface{}, 0)
 	if err != nil {
 		return ret, err
@@ -237,7 +237,7 @@ func Escape(str string) string {
 //save can be used by HandleREST and DbObject
 func save(dbName string, tblName string, cols []Column) (int, int, error) {
 	var err error
-	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
+	db, err := Connect()
 	if err != nil {
 		return -1, -1, err
 	}
@@ -302,7 +302,7 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 
 //delete can be used by HandleREST and DbObject
 func delete(dbName string, tblName string, cols []Column) (int, error) {
-	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
+	db, err := Connect()
 	if err != nil {
 		return 1, err
 	}
@@ -361,22 +361,22 @@ func GetDatabaseNames(db *sql.DB) []string {
 }
 
 //don't show system databases
-// func skipDb(name string) bool {
-// 	skip := []string{
-// 		"information_schema",
-// 		"mysql",
-// 		"performance_schema",
-// 		"owncloud",
-// 		"nextcloud",
-// 		"roundcubemail",
-// 	}
-// 	for _, s := range skip {
-// 		if name == s {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
+func skipDb(name string) bool {
+	skip := []string{
+		"information_schema",
+		"mysql",
+		"performance_schema",
+		"owncloud",
+		"nextcloud",
+		"roundcubemail",
+	}
+	for _, s := range skip {
+		if name == s {
+			return true
+		}
+	}
+	return false
+}
 
 //GetTableNames Get table names from database
 func GetTableNames(db *sql.DB, dbName string) []string {

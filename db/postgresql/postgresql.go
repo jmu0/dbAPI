@@ -1,13 +1,14 @@
-package mysql
+package postgresql
 
 import (
 	"database/sql"
 	"errors"
-	"time"
+	"fmt"
+	"strings"
 
 	"github.com/jmu0/dbAPI/db"
-	//connect to mysql
-	_ "github.com/go-sql-driver/mysql"
+	//connect to postgres
+	_ "github.com/lib/pq"
 )
 
 //Conn mysql connection implements db.Conn
@@ -20,6 +21,9 @@ func (c *Conn) Connect(args map[string]string) error {
 	if _, ok := args["hostname"]; !ok {
 		return errors.New("No hostname in args")
 	}
+	if _, ok := args["database"]; !ok {
+		return errors.New("No database in args")
+	}
 	if _, ok := args["username"]; !ok {
 		return errors.New("No username in args")
 	}
@@ -27,14 +31,11 @@ func (c *Conn) Connect(args map[string]string) error {
 		return errors.New("No password in args")
 	}
 	if _, ok := args["port"]; !ok {
-		args["port"] = "3306"
+		args["port"] = "5432"
 	}
-	dsn := args["username"] + ":" + args["password"] + "@tcp(" + args["hostname"] + ":" + args["port"] + ")/"
-	db, err := sql.Open("mysql", dsn)
-	db.SetMaxOpenConns(50)
-	db.SetMaxIdleConns(0)
-	d, _ := time.ParseDuration("1 second")
-	db.SetConnMaxLifetime(d)
+	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s sslmode=disable",
+		args["username"], args["password"], args["database"], args["hostname"])
+	db, err := sql.Open("postgres", dbinfo)
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func (c *Conn) Connect(args map[string]string) error {
 //GetSchemaNames from database
 func (c *Conn) GetSchemaNames() ([]string, error) {
 	dbs := []string{}
-	query := "show databases"
+	query := "select schema_name from information_schema.schemata"
 	rows, err := c.conn.Query(query)
 	defer rows.Close()
 	if err != nil {
@@ -67,12 +68,11 @@ func (c *Conn) GetSchemaNames() ([]string, error) {
 //don't show system databases
 func skipDb(name string) bool {
 	skip := []string{
+		"pg_toast",
+		"pg_temp_1",
+		"pg_toast_temp_1",
+		"pg_catalog",
 		"information_schema",
-		"mysql",
-		"performance_schema",
-		"owncloud",
-		"nextcloud",
-		"roundcubemail",
 	}
 	for _, s := range skip {
 		if name == s {
@@ -85,7 +85,7 @@ func skipDb(name string) bool {
 //GetTableNames from database
 func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
 	tbls := []string{}
-	query := "show tables in " + databaseName
+	query := "select table_name from information_schema.tables where table_schema='" + strings.ToLower(databaseName) + "'"
 	rows, err := c.conn.Query(query)
 	if err != nil {
 		return nil, err
