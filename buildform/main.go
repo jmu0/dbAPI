@@ -53,7 +53,11 @@ func main() {
 }
 
 func getCols() []mysql.Column {
-	conn, err = mysql.Connect()
+	conn, err = mysql.Connect(map[string]string{
+		"hostname": "database",
+		"username": "web",
+		"password": "jmu0!",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

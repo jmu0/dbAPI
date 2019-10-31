@@ -111,8 +111,3 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
 	return nil, nil
 }
-
-//Query database
-func (c *Conn) Query(query string) ([]map[string]interface{}, error) {
-	return nil, nil
-}

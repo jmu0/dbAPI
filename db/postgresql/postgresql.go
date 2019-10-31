@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
@@ -109,10 +110,14 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 
 //GetColumns from database table
 func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
-	return nil, nil
-}
-
-//Query database
-func (c *Conn) Query(query string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf(`select c.table_catalog, c.table_schema, c.table_name, c.column_name,
+	c.data_type, c.character_maximum_length, c.is_nullable, c.column_default,
+	COALESCE((select tc.constraint_type from information_schema.key_column_usage kc
+	inner join information_schema.table_constraints tc 
+		on kc.constraint_catalog=tc.constraint_catalog and kc.constraint_schema=tc.constraint_schema and kc.constraint_name=tc.constraint_name
+	where tc.table_catalog=c.table_catalog and tc.table_schema=c.table_schema and  tc.table_name=c.table_name and kc.column_name = c.column_name),'') as key
+	from information_schema.columns c
+	where c.table_schema='%s' and c.table_name='%s'`, databaseName, tableName)
+	log.Println(query)
 	return nil, nil
 }

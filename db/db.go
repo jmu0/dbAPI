@@ -7,7 +7,6 @@ type Conn interface {
 	GetTableNames(databaseName string) ([]string, error)
 	GetRelationships(databaseName string, tableName string) ([]Relationship, error)
 	GetColumns(databaseName, tableName string) ([]Column, error)
-	Query(query string) ([]map[string]interface{}, error)
 }
 
 //Column holds column data
@@ -29,4 +28,9 @@ type Relationship struct {
 	ToTable     string
 	ToCols      string
 	Cardinality string
+}
+
+//Query queries the database
+func Query(db Conn, query string) ([]map[string]interface{}, error) {
+	return nil, nil
 }

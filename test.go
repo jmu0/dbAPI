@@ -33,6 +33,7 @@ func testPostgres() {
 	fmt.Println(pg.GetSchemaNames())
 	fmt.Println("\nTables in assortiment:")
 	fmt.Println(pg.GetTableNames("Assortiment"))
+	fmt.Println(pg.GetColumns("assortiment", "plant"))
 }
 func testMysql() {
 	var d = mysql.Conn{}
