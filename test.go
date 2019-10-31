@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jmu0/dbAPI/db"
+
 	"github.com/jmu0/dbAPI/api"
 	"github.com/jmu0/dbAPI/db/mysql"
 	"github.com/jmu0/dbAPI/db/postgresql"
@@ -13,12 +15,13 @@ import (
 var listenAddr = ":8282"
 
 func main() {
-	testMysql()
+	// testMysql()
 	testPostgres()
 }
 
 func testPostgres() {
 	var pg = postgresql.Conn{}
+
 	err := pg.Connect(map[string]string{
 		"database": "test",
 		"hostname": "localhost",
@@ -33,7 +36,10 @@ func testPostgres() {
 	fmt.Println(pg.GetSchemaNames())
 	fmt.Println("\nTables in assortiment:")
 	fmt.Println(pg.GetTableNames("Assortiment"))
-	fmt.Println(pg.GetColumns("assortiment", "plant"))
+	fmt.Println("\nGet columns for assortiment.plant:")
+	// fmt.Println(pg.GetColumns("assortiment", "plant"))
+	c, err := pg.GetColumns("assortiment", "plant")
+	printdbcols(c)
 }
 func testMysql() {
 	var d = mysql.Conn{}
@@ -50,6 +56,11 @@ func testMysql() {
 	fmt.Println(d.GetSchemaNames())
 	fmt.Println("\nTables in assortiment:")
 	fmt.Println(d.GetTableNames("Assortiment"))
+	fmt.Println("\nColumns in Assortiment.Plant:")
+	fmt.Println(d.GetColumns("Assortiment", "Plant"))
+	// c, _ := d.GetColumns("Assortiment", "Plant")
+	// printdbcols(c)
+	fmt.Println(d.GetRelationships("Assortiment", "Plant"))
 }
 
 func testGraphql() {
@@ -87,4 +98,16 @@ func testGraphql() {
 	fmt.Println("Listening on port", listenAddr)
 	log.Fatal(http.ListenAndServe(listenAddr, mx))
 
+}
+
+func printdbcols(cols []db.Column) {
+	for _, c := range cols {
+		fmt.Println("\nname:", c.Name)
+		fmt.Println("type:", c.Type)
+		fmt.Println("length:", c.Length)
+		fmt.Println("nullable:", c.Nullable)
+		fmt.Println("primary key:", c.PrimaryKey)
+		fmt.Println("default value:", c.DefaultValue)
+		fmt.Println("value:", c.Value)
+	}
 }

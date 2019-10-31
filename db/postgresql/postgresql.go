@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"strconv"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
+
 	//connect to postgres
 	_ "github.com/lib/pq"
 )
@@ -37,6 +38,10 @@ func (c *Conn) Connect(args map[string]string) error {
 	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s host=%s sslmode=disable",
 		args["username"], args["password"], args["database"], args["hostname"])
 	db, err := sql.Open("postgres", dbinfo)
+	if err != nil {
+		return err
+	}
+	err = db.Ping()
 	if err != nil {
 		return err
 	}
@@ -110,7 +115,7 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 
 //GetColumns from database table
 func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
-	query := fmt.Sprintf(`select c.table_catalog, c.table_schema, c.table_name, c.column_name,
+	query := fmt.Sprintf(`select c.column_name,
 	c.data_type, c.character_maximum_length, c.is_nullable, c.column_default,
 	COALESCE((select tc.constraint_type from information_schema.key_column_usage kc
 	inner join information_schema.table_constraints tc 
@@ -118,6 +123,77 @@ func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
 	where tc.table_catalog=c.table_catalog and tc.table_schema=c.table_schema and  tc.table_name=c.table_name and kc.column_name = c.column_name),'') as key
 	from information_schema.columns c
 	where c.table_schema='%s' and c.table_name='%s'`, databaseName, tableName)
-	log.Println(query)
-	return nil, nil
+	cols := []db.Column{}
+	var col db.Column
+	var name, tp, ln, null string
+	var def, key interface{}
+	var l int
+	var err error
+	rows, err := c.conn.Query(query)
+	defer rows.Close()
+	if err == nil && rows != nil {
+		for rows.Next() {
+			name = ""
+			tp = ""
+			ln = ""
+			null = ""
+			def = nil
+			key = nil
+			rows.Scan(&name, &tp, &ln, &null, &def, &key)
+			l, err = strconv.Atoi(ln)
+			if err != nil {
+				l = 0
+			}
+			if def == nil {
+				def = ""
+			}
+			col = db.Column{
+				Name:         name,
+				DefaultValue: def.(string),
+				Length:       l,
+			}
+			if key == "PRIMARY KEY" {
+				col.PrimaryKey = true
+			} else {
+				col.PrimaryKey = false
+			}
+			if null == "YES" {
+				col.Nullable = true
+			} else {
+				col.Nullable = false
+			}
+			col.Type = mapDataType(tp)
+			cols = append(cols, col)
+		}
+	}
+	return cols, nil
+}
+
+func mapDataType(dbType string) string {
+	dataTypes := map[string]string{
+		"smallint":          "int",
+		"integer":           "int",
+		"bigint":            "int",
+		"decimal":           "float",
+		"numeric":           "float",
+		"real":              "float",
+		"double precision":  "float",
+		"smallserial":       "int",
+		"serial":            "int",
+		"bigserial":         "int",
+		"money":             "float",
+		"character varying": "string",
+		"varchar":           "string",
+		"character":         "string",
+		"char":              "string",
+		"text":              "string",
+		"timestamp":         "string",
+		"date":              "string",
+		"time":              "string",
+		"boolean":           "bool",
+	}
+	if t, ok := dataTypes[dbType]; ok {
+		return t
+	}
+	return "unknown"
 }

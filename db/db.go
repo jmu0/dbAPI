@@ -11,13 +11,12 @@ type Conn interface {
 
 //Column holds column data
 type Column struct {
-	Field        string
+	Name         string
 	Type         string
 	Length       int
 	Nullable     bool
 	PrimaryKey   bool
 	DefaultValue string
-	Extra        string
 	Value        interface{}
 }
 

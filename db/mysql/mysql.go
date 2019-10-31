@@ -3,6 +3,8 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmu0/dbAPI/db"
@@ -31,13 +33,17 @@ func (c *Conn) Connect(args map[string]string) error {
 	}
 	dsn := args["username"] + ":" + args["password"] + "@tcp(" + args["hostname"] + ":" + args["port"] + ")/"
 	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(0)
 	d, _ := time.ParseDuration("1 second")
 	db.SetConnMaxLifetime(d)
-	if err != nil {
-		return err
-	}
 	c.conn = db
 	return nil
 }
@@ -109,5 +115,63 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 
 //GetColumns from database table
 func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
-	return nil, nil
+	cols := []db.Column{}
+	var col db.Column
+	var field, tp, null, key, def, extra string
+	query := "show columns from " + databaseName + "." + tableName
+	//TODO: waarom zie ik geen auto_increment in kolom Extra?? omdat string niet nil kan zijn. verander def in interface
+	rows, err := c.conn.Query(query)
+	defer rows.Close()
+	if err == nil && rows != nil {
+		for rows.Next() {
+			rows.Scan(&field, &tp, &null, &key, &def, &extra)
+			col = db.Column{
+				Name:         field,
+				DefaultValue: def,
+			}
+			if key == "PRI" {
+				col.PrimaryKey = true
+			} else {
+				col.PrimaryKey = false
+			}
+			if null == "YES" {
+				col.Nullable = true
+			} else {
+				col.Nullable = false
+			}
+			col.Type, col.Length = mapDataType(tp)
+
+			// log.Println("DEBUG col:", col)
+			cols = append(cols, col)
+		}
+	}
+	return cols, nil
+}
+
+func mapDataType(dbType string) (string, int) {
+	var spl = strings.Split(dbType, "(")
+	var tp string
+	var ln int
+	var err error
+	if len(spl) > 1 {
+		tp = spl[0]
+		ln, err = strconv.Atoi(spl[1][:len(spl[1])-1])
+		if err != nil {
+			ln = 0
+		}
+	} else {
+		tp = dbType
+	}
+	dataTypes := map[string]string{
+		"varchar":  "string",
+		"tinyint":  "int",
+		"smallint": "int",
+		"datetime": "string",
+		"int":      "int",
+		"double":   "float",
+	}
+	if t, ok := dataTypes[tp]; ok {
+		return t, ln
+	}
+	return "unknown", ln
 }
