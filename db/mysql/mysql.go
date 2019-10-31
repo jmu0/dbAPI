@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +14,6 @@ import (
 
 	//used for connecting to datbase
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmu0/settings"
 )
 
 //TODO create interface, handle different db's (mysql, postgres)
@@ -28,34 +26,9 @@ func makeDSN(server, user, password string) string {
 }
 
 //Connect connect to database
-func Connect(arg ...string) (*sql.DB, error) {
-	//TODO change path
-	var path string
-	//TODO save login somewhere else
-	path = "orm.conf"
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		path = "/etc/orm.conf"
-	}
-	set := settings.Settings{File: path}
-	database, err := set.Get("database")
-	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Database server: ")
-		fmt.Scanln(&database)
-	}
-	usr, err := set.Get("user")
-	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Username: ")
-		fmt.Scanln(&usr)
-	}
-	pwd, err := set.Get("password")
-	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Password: ")
-		fmt.Scanln(&pwd)
-	}
-	db, err := sql.Open("mysql", makeDSN(database, usr, pwd))
+func Connect(args map[string]string) (*sql.DB, error) {
+
+	db, err := sql.Open("mysql", makeDSN(args["database"], args["username"], args["password"]))
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(0)
 	d, _ := time.ParseDuration("1 second")
@@ -69,7 +42,7 @@ func Connect(arg ...string) (*sql.DB, error) {
 //DoQuery connects, queries and returns results
 func DoQuery(query string) ([]map[string]interface{}, error) {
 	var err error
-	db, err := Connect()
+	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
 	ret := make([]map[string]interface{}, 0)
 	if err != nil {
 		return ret, err
@@ -265,7 +238,7 @@ func Escape(str string) string {
 //save can be used by HandleREST and DbObject
 func save(dbName string, tblName string, cols []Column) (int, int, error) {
 	var err error
-	db, err := Connect()
+	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
 	if err != nil {
 		return -1, -1, err
 	}
@@ -330,7 +303,7 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 
 //delete can be used by HandleREST and DbObject
 func delete(dbName string, tblName string, cols []Column) (int, error) {
-	db, err := Connect()
+	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
 	if err != nil {
 		return 1, err
 	}
