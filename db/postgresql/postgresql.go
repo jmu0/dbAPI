@@ -18,6 +18,11 @@ type Conn struct {
 	conn *sql.DB
 }
 
+//GetConnection returns connection *sql.DB
+func (c *Conn) GetConnection() *sql.DB {
+	return c.conn
+}
+
 //Connect to database
 func (c *Conn) Connect(args map[string]string) error {
 	if _, ok := args["hostname"]; !ok {
