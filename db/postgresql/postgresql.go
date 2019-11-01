@@ -115,7 +115,44 @@ func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
 
 //GetRelationships from database table
 func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Relationship, error) {
-	return nil, nil
+	var ret []db.Relationship
+	query := fmt.Sprintf(`select fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols from (SELECT
+		concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
+		kcu.column_name as fromCol, 
+		concat(ccu.table_schema, '.', ccu.table_name) AS toTbl,
+		ccu.column_name AS toCol
+	FROM 
+		information_schema.table_constraints AS tc 
+		JOIN information_schema.key_column_usage AS kcu
+		  ON tc.constraint_name = kcu.constraint_name
+		  AND tc.table_schema = kcu.table_schema
+		JOIN information_schema.constraint_column_usage AS ccu
+		  ON ccu.constraint_name = tc.constraint_name
+		  AND ccu.table_schema = tc.table_schema
+	WHERE tc.constraint_type = 'FOREIGN KEY' 
+	AND ((tc.table_schema='%s' and tc.table_name='%s') 
+		or (ccu.table_schema='%s' and ccu.table_name='%s'))) as regels
+		group by fromTbl, toTbl`, databaseName, tableName, databaseName, tableName)
+	res, err := db.Query(c, query)
+	//TODO: check if this matters: on constraints with multiple columns the order of the columns can be different
+	if err != nil {
+		return ret, err
+	}
+	for _, r := range res {
+		var rel = db.Relationship{
+			FromTable: r["fromtbl"].(string),
+			FromCols:  r["fromcols"].(string),
+			ToTable:   r["totbl"].(string),
+			ToCols:    r["tocols"].(string),
+		}
+		if rel.FromTable == databaseName+"."+tableName {
+			rel.Cardinality = "many-to-one"
+		} else if rel.ToTable == databaseName+"."+tableName {
+			rel.Cardinality = "one-to-many"
+		}
+		ret = append(ret, rel)
+	}
+	return ret, nil
 }
 
 //GetColumns from database table

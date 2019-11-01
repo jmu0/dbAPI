@@ -15,8 +15,8 @@ import (
 var listenAddr = ":8282"
 
 func main() {
-	testMysql()
-	// testPostgres()
+	// testMysql()
+	testPostgres()
 }
 
 func testPostgres() {
@@ -37,9 +37,11 @@ func testPostgres() {
 	fmt.Println("\nTables in assortiment:")
 	fmt.Println(pg.GetTableNames("Assortiment"))
 	fmt.Println("\nGet columns for assortiment.plant:")
-	// fmt.Println(pg.GetColumns("assortiment", "plant"))
-	c, err := pg.GetColumns("assortiment", "plant")
-	printdbcols(c)
+	fmt.Println(pg.GetColumns("assortiment", "plant"))
+	// c, err := pg.GetColumns("assortiment", "plant")
+	// printdbcols(c)
+	fmt.Println("\nRelationships for assortiment.artikel:")
+	fmt.Println(pg.GetRelationships("assortiment", "artikel"))
 }
 func testMysql() {
 	var d = mysql.Conn{}
@@ -60,8 +62,8 @@ func testMysql() {
 	fmt.Println(d.GetColumns("Assortiment", "Plant"))
 	// c, _ := d.GetColumns("Assortiment", "Plant")
 	// printdbcols(c)
-	fmt.Println("\nRelationships for Assortiment.Plant:")
-	fmt.Println(d.GetRelationships("Assortiment", "Plant"))
+	fmt.Println("\nRelationships for Assortiment.Artikel:")
+	fmt.Println(d.GetRelationships("Assortiment", "Artikel"))
 }
 
 func testGraphql() {
