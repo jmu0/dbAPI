@@ -1,8 +1,11 @@
 package db
 
+import "database/sql"
+
 //Conn interface
 type Conn interface {
 	Connect(args map[string]string) error
+	GetConnection() *sql.DB
 	GetSchemaNames() ([]string, error)
 	GetTableNames(databaseName string) ([]string, error)
 	GetRelationships(databaseName string, tableName string) ([]Relationship, error)
@@ -30,6 +33,43 @@ type Relationship struct {
 }
 
 //Query queries the database
-func Query(db Conn, query string) ([]map[string]interface{}, error) {
-	return nil, nil
+func Query(c Conn, query string) ([]map[string]interface{}, error) {
+	res := make([]map[string]interface{}, 0)
+	rows, err := c.GetConnection().Query(query)
+	if err != nil {
+		return res, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		rows.Close()
+		return res, err
+	}
+	values := make([]sql.RawBytes, len(columns))
+	scanArgs := make([]interface{}, len(values))
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+
+	for rows.Next() {
+		rows.Scan(scanArgs...)
+		v := make(map[string]interface{})
+		var value interface{}
+		for i, col := range values {
+			if col == nil {
+				value = ""
+			} else {
+				value = string(col)
+			}
+			v[columns[i]] = value
+		}
+		res = append(res, v)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return res, err
+	}
+	//DEBUG:log.Println(res)
+	return res, nil
 }
