@@ -189,7 +189,7 @@ func findColIndex(field string, cols []Column) int {
 func writeQueryResults(db *sql.DB, q string, w http.ResponseWriter) {
 	var ret interface{}
 	res, err := Query(db, q)
-	//fmt.Println("REST: DEBUG: writeQueryResults:", q)
+	// fmt.Println("REST: DEBUG: writeQueryResults:", q)
 	if err != nil {
 		http.Error(w, "No results found", http.StatusNotFound)
 		return
@@ -208,9 +208,17 @@ func writeQueryResults(db *sql.DB, q string, w http.ResponseWriter) {
 	//drop password fields
 	var pwReg = ",\"?([P,p]ass[W,w]o?r?d|[W,w]acht[W,w]o?o?r?d?)\"?:\"(.*?)\""
 	passwdReg := regexp.MustCompile(pwReg)
-	str := passwdReg.ReplaceAllString(string(bytes), "")
+	bytes = []byte(passwdReg.ReplaceAllString(string(bytes), ""))
+	zip, err := compress(bytes)
+	if err == nil {
+		// log.Println("REST: DEBUG: compressed result")
+		bytes = zip
+		w.Header().Set("Content-Encoding", "gzip")
+	} else {
+		log.Println("Error compressing result:", err)
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write([]byte(str))
+	w.Write(bytes)
 }
 
 //getRequestData get data from post request

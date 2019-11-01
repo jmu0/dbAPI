@@ -264,7 +264,23 @@ func HandleGQL(schema *graphql.Schema, w http.ResponseWriter, r *http.Request) {
 	// log.Println("DEBUG:queryCache:", len(queryCache))
 	log.Println("Served graphql in", time.Since(start))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(result)
+	// json.NewEncoder(w).Encode(result)
+	bytes, err := json.Marshal(result)
+	if err != nil {
+		log.Println("GRAPHQL: ERROR:", err)
+		http.Error(w, "Graphql error", http.StatusInternalServerError)
+		return
+	}
+	zip, err := compress(bytes)
+	if err == nil {
+		// log.Println("GRAPHQL: DEBUG: compressed result")
+		bytes = zip
+		w.Header().Set("Content-Encoding", "gzip")
+	} else {
+		log.Println("Error compressing graphql result:", err)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(bytes)
 }
 
 //BuildSchemaArgs provides arguments for buildschema function
