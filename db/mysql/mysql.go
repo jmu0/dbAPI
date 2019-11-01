@@ -17,6 +17,11 @@ type Conn struct {
 	conn *sql.DB
 }
 
+//GetConnection returns connection *sql.DB
+func (c *Conn) GetConnection() *sql.DB {
+	return c.conn
+}
+
 //Connect to database
 func (c *Conn) Connect(args map[string]string) error {
 	if _, ok := args["hostname"]; !ok {
@@ -110,7 +115,37 @@ func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
 
 //GetRelationships from database table
 func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Relationship, error) {
-	return nil, nil
+	var ret []db.Relationship
+	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
+			group_concat(column_name separator ", ") as fromCols,
+			concat(referenced_table_schema, ".", referenced_table_name) as toTbl, 
+			group_concat(referenced_column_name separator ", ") as toCols
+			from (select constraint_name, table_schema,table_name,column_name,referenced_table_schema,referenced_table_name, 
+			referenced_column_name from information_schema.key_column_usage
+			where (referenced_table_schema="` + databaseName + `" and referenced_table_name="` + tableName + `") 
+			or (table_schema="` + databaseName + `" and table_name="` + tableName + `")
+			and constraint_name <> "PRIMARY"
+			) as relations group by fromTbl, toTbl`
+	// log.Println("DEBUG:", query)
+	res, err := db.Query(c, query)
+	if err != nil {
+		return ret, err
+	}
+	for _, r := range res {
+		var rel = db.Relationship{
+			FromTable: r["fromTbl"].(string),
+			FromCols:  r["fromCols"].(string),
+			ToTable:   r["toTbl"].(string),
+			ToCols:    r["toCols"].(string),
+		}
+		if rel.FromTable == databaseName+"."+tableName {
+			rel.Cardinality = "many-to-one"
+		} else if rel.ToTable == databaseName+"."+tableName {
+			rel.Cardinality = "one-to-many"
+		}
+		ret = append(ret, rel)
+	}
+	return ret, nil
 }
 
 //GetColumns from database table
@@ -119,7 +154,7 @@ func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
 	var col db.Column
 	var field, tp, null, key, def, extra string
 	query := "show columns from " + databaseName + "." + tableName
-	//TODO: waarom zie ik geen auto_increment in kolom Extra?? omdat string niet nil kan zijn. verander def in interface
+	//TODO: waarom zie ik geen auto_increment in kolom Extra?? omdat string niet <nil> kan zijn. verander def in interface
 	rows, err := c.conn.Query(query)
 	defer rows.Close()
 	if err == nil && rows != nil {
