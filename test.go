@@ -15,8 +15,8 @@ import (
 var listenAddr = ":8282"
 
 func main() {
-	// testMysql()
-	testPostgres()
+	testMysql()
+	// testPostgres()
 }
 
 func testPostgres() {
@@ -60,6 +60,7 @@ func testMysql() {
 	fmt.Println(d.GetColumns("Assortiment", "Plant"))
 	// c, _ := d.GetColumns("Assortiment", "Plant")
 	// printdbcols(c)
+	fmt.Println("\nRelationships for Assortiment.Plant:")
 	fmt.Println(d.GetRelationships("Assortiment", "Plant"))
 }
 

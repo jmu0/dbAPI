@@ -70,6 +70,5 @@ func Query(c Conn, query string) ([]map[string]interface{}, error) {
 		rows.Close()
 		return res, err
 	}
-	//DEBUG:log.Println(res)
 	return res, nil
 }
