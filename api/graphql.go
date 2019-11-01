@@ -222,6 +222,7 @@ func getSchema() (graphql.Schema, error) {
 
 //HandleGQL serves graphql api
 func HandleGQL(schema *graphql.Schema, w http.ResponseWriter, r *http.Request) {
+	//TODO: compress results
 	var query string
 	start := time.Now()
 	mutex.Lock()

@@ -11,6 +11,7 @@ import (
 
 //HandleREST handle REST api for DbObject
 func HandleREST(pathPrefix string, w http.ResponseWriter, r *http.Request) string {
+	//TODO: compress results
 	var objStr = r.URL.Path
 	db, err := Connect()
 	if err != nil {
