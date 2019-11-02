@@ -7,15 +7,6 @@ import (
 	"github.com/jmu0/dbAPI/db"
 )
 
-func findColIndex(field string, cols []db.Column) int {
-	for index, col := range cols {
-		if strings.ToLower(col.Field) == strings.ToLower(field) {
-			return index
-		}
-	}
-	return -1
-}
-
 //getRequestData get data from post request
 func getRequestData(req *http.Request) (map[string]interface{}, error) {
 	err := req.ParseForm()

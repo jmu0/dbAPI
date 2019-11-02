@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/jmu0/dbAPI/db"
 )
@@ -85,6 +86,16 @@ func values2columns(cols *[]db.Column, values map[string]interface{}) {
 			(*cols)[index].Value = Escape(value.(string))
 		}
 	}
+}
+
+func findColIndex(field string, cols []db.Column) int {
+	//TODO: delete this function?
+	for index, col := range cols {
+		if strings.ToLower(col.Field) == strings.ToLower(field) {
+			return index
+		}
+	}
+	return -1
 }
 
 func cols2json(table string, cols []db.Column) ([]byte, error) {
