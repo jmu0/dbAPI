@@ -140,15 +140,3 @@ func primaryKeyWhereSQL(cols []Column) (string, error) {
 	}
 	return ret, nil
 }
-
-//primaryKeyCols filters primary key columns from []Column
-//TODO: unused?
-func primaryKeyCols(cols []Column) []Column {
-	var ret []Column
-	for _, c := range cols {
-		if c.PrimaryKey == true {
-			ret = append(ret, c)
-		}
-	}
-	return ret
-}

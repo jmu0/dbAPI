@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"log"
 	"net/http"
 	"regexp"
 
@@ -61,4 +62,27 @@ func compress(inp []byte) ([]byte, error) {
 		return inp, err
 	}
 	return []byte(buf.String()), nil
+}
+
+func getColsWithValues(c db.Conn, dbName string, tblName string, r *http.Request) []db.Column {
+	//TODO: delet this function?
+	cols, err := c.GetColumns(dbName, tblName)
+	data, err := getRequestData(r)
+	if err != nil {
+		log.Println("REST: ERROR: POST:", dbName, tblName, err)
+	}
+
+	//set column values
+	values2columns(&cols, data)
+	return cols
+}
+
+func values2columns(cols *[]db.Column, values map[string]interface{}) {
+	//TODO: used in more than getColsWithValues?
+	for key, value := range values {
+		index := findColIndex(key, *cols)
+		if index > -1 {
+			(*cols)[index].Value = Escape(value.(string))
+		}
+	}
 }

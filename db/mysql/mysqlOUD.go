@@ -1,37 +1,14 @@
 package mysql
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
 )
-
-func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Request) []db.Column {
-	cols := GetColumns(db, dbName, tblName)
-	data, err := getRequestData(r)
-	if err != nil {
-		log.Println("REST: ERROR: POST:", dbName, tblName, err)
-	}
-
-	//set column values
-	values2columns(&cols, data)
-	return cols
-}
-
-func values2columns(cols *[]db.Column, values map[string]interface{}) {
-	for key, value := range values {
-		index := findColIndex(key, *cols)
-		if index > -1 {
-			(*cols)[index].Value = Escape(value.(string))
-		}
-	}
-}
 
 func cols2json(table string, cols []db.Column) ([]byte, error) {
 	var ret map[string]interface{}
