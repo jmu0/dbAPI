@@ -65,13 +65,52 @@ func Execute(c Conn, query string, params []interface{}) (int64, int64, error) {
 
 //SaveSQL builds SQL query and parameters for saving data
 func SaveSQL(schemaName, tableName string, cols []Column) (string, []interface{}, error) {
-
-	return "", make([]interface{}, 0), nil
+	query := "insert into " + schemaName + "." + tableName + " "
+	fields := "("
+	strValues := "("
+	insValues := make([]interface{}, 0)
+	updValues := make([]interface{}, 0)
+	strUpdate := ""
+	for _, c := range cols {
+		if c.Value != nil {
+			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
+				if len(fields) > 1 {
+					fields += ", "
+				}
+				fields += c.Name
+				if len(strValues) > 1 {
+					strValues += ", "
+				}
+				strValues += "?"
+				insValues = append(insValues, c.Value)
+				if len(strUpdate) > 0 {
+					strUpdate += ", "
+				}
+				strUpdate += c.Name + "=?"
+				updValues = append(updValues, c.Value)
+			}
+		}
+	}
+	if len(fields) == 1 {
+		return "", make([]interface{}, 0), errors.New("No columns contains a value")
+	}
+	fields += ")"
+	strValues += ")"
+	query += fields + " values " + strValues
+	query += " on duplicate key update " + strUpdate
+	insValues = append(insValues, updValues...)
+	return query, insValues, nil
 }
 
 //DeleteSQL builds SQL query for deleting data
 func DeleteSQL(schemaName, tableName string, cols []Column) (string, error) {
-	return "", nil
+	query := "delete from " + schemaName + "." + tableName + " where"
+	where, err := primaryKeyWhereSQL(cols)
+	if err != nil {
+		return "", err
+	}
+	query += where
+	return query, nil
 }
 
 //primaryKeyWhereSQL returns where part (without 'where') of query
