@@ -8,9 +8,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/jmu0/dbAPI/db"
 )
 
-func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Request) []Column {
+func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Request) []db.Column {
 	cols := GetColumns(db, dbName, tblName)
 	data, err := getRequestData(r)
 	if err != nil {
@@ -22,7 +24,7 @@ func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Reques
 	return cols
 }
 
-func values2columns(cols *[]Column, values map[string]interface{}) {
+func values2columns(cols *[]db.Column, values map[string]interface{}) {
 	for key, value := range values {
 		index := findColIndex(key, *cols)
 		if index > -1 {
@@ -31,7 +33,7 @@ func values2columns(cols *[]Column, values map[string]interface{}) {
 	}
 }
 
-func cols2json(table string, cols []Column) ([]byte, error) {
+func cols2json(table string, cols []db.Column) ([]byte, error) {
 	var ret map[string]interface{}
 	ret = make(map[string]interface{})
 	ret["type"] = table
@@ -45,7 +47,7 @@ func cols2json(table string, cols []Column) ([]byte, error) {
 	return json, nil
 }
 
-func findColIndex(field string, cols []Column) int {
+func findColIndex(field string, cols []db.Column) int {
 	for index, col := range cols {
 		if strings.ToLower(col.Field) == strings.ToLower(field) {
 			return index
@@ -68,7 +70,7 @@ func getRequestData(req *http.Request) (map[string]interface{}, error) {
 }
 
 //save can be used by HandleREST and DbObject
-func save(dbName string, tblName string, cols []Column) (int, int, error) {
+func save(dbName string, tblName string, cols []db.Column) (int, int, error) {
 	var err error
 	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
 	if err != nil {
@@ -134,7 +136,7 @@ func save(dbName string, tblName string, cols []Column) (int, int, error) {
 }
 
 //delete can be used by HandleREST and DbObject
-func delete(dbName string, tblName string, cols []Column) (int, error) {
+func delete(dbName string, tblName string, cols []db.Column) (int, error) {
 	db, err := Connect(map[string]string{"database": "database", "username": "web", "password": "jmu0!"})
 	if err != nil {
 		return 1, err
@@ -157,7 +159,7 @@ func delete(dbName string, tblName string, cols []Column) (int, error) {
 	return 0, nil
 }
 
-func setAutoIncColumn(id int, cols []Column) []Column {
+func setAutoIncColumn(id int, cols []db.Column) []db.Column {
 	//fmt.Println("DEBUG:setAutoIncColumn")
 	for index, col := range cols {
 		if strings.Contains(col.Type, "int") && col.Key == "PRI" {
