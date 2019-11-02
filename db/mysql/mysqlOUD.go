@@ -1,11 +1,5 @@
 package mysql
 
-import (
-	"strings"
-
-	"github.com/jmu0/dbAPI/db"
-)
-
 //save can be used by HandleREST and DbObject
 // func save(dbName string, tblName string, cols []db.Column) (int, int, error) {
 // 	var err error
@@ -95,14 +89,3 @@ import (
 // 	}
 // 	return 0, nil
 // }
-
-func setAutoIncColumn(id int, cols []db.Column) []db.Column {
-	//fmt.Println("DEBUG:setAutoIncColumn")
-	for index, col := range cols {
-		if strings.Contains(col.Type, "int") && col.Key == "PRI" {
-			//fmt.Println("DEBUG:found", col.Field)
-			cols[index].Value = id
-		}
-	}
-	return cols
-}
