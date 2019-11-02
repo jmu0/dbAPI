@@ -83,7 +83,7 @@ func values2columns(cols *[]db.Column, values map[string]interface{}) {
 	for key, value := range values {
 		index := findColIndex(key, *cols)
 		if index > -1 {
-			(*cols)[index].Value = Escape(value.(string))
+			(*cols)[index].Value = db.Escape(value.(string))
 		}
 	}
 }
@@ -91,7 +91,7 @@ func values2columns(cols *[]db.Column, values map[string]interface{}) {
 func findColIndex(field string, cols []db.Column) int {
 	//TODO: delete this function?
 	for index, col := range cols {
-		if strings.ToLower(col.Field) == strings.ToLower(field) {
+		if strings.ToLower(col.Name) == strings.ToLower(field) {
 			return index
 		}
 	}
@@ -104,7 +104,7 @@ func cols2json(table string, cols []db.Column) ([]byte, error) {
 	ret = make(map[string]interface{})
 	ret["type"] = table
 	for _, col := range cols {
-		ret[col.Field] = col.Value
+		ret[col.Name] = col.Value
 	}
 	json, err := json.Marshal(ret)
 	if err != nil {
@@ -131,7 +131,8 @@ func setAutoIncColumn(id int, cols []db.Column) []db.Column {
 	//TODO: delete this function?
 	//fmt.Println("DEBUG:setAutoIncColumn")
 	for index, col := range cols {
-		if strings.Contains(col.Type, "int") && col.Key == "PRI" {
+		//TODO: put AutoIncrement boolean in column type
+		if strings.Contains(col.Type, "int") && col.PrimaryKey == true {
 			//fmt.Println("DEBUG:found", col.Field)
 			cols[index].Value = id
 		}
