@@ -1,24 +1,10 @@
 package mysql
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
 )
-
-//getRequestData get data from post request
-func getRequestData(req *http.Request) (map[string]interface{}, error) {
-	err := req.ParseForm()
-	if err != nil {
-		return make(map[string]interface{}), err
-	}
-	res := make(map[string]interface{})
-	for k, v := range req.Form {
-		res[k] = strings.Join(v, "")
-	}
-	return res, nil
-}
 
 //save can be used by HandleREST and DbObject
 // func save(dbName string, tblName string, cols []db.Column) (int, int, error) {

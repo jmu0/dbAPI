@@ -112,3 +112,17 @@ func cols2json(table string, cols []db.Column) ([]byte, error) {
 	}
 	return json, nil
 }
+
+//getRequestData get data from post request
+func getRequestData(req *http.Request) (map[string]interface{}, error) {
+	//TODO: delete this function?
+	err := req.ParseForm()
+	if err != nil {
+		return make(map[string]interface{}), err
+	}
+	res := make(map[string]interface{})
+	for k, v := range req.Form {
+		res[k] = strings.Join(v, "")
+	}
+	return res, nil
+}
