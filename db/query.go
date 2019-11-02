@@ -63,6 +63,17 @@ func Execute(c Conn, query string, params []interface{}) (int64, int64, error) {
 	return id, n, nil
 }
 
+//SelectSQL builds SQL query for selecting record by PrimaryKey
+func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
+	q := "select * from " + schemaName + "." + tableName + " where "
+	where, err := primaryKeyWhereSQL(cols)
+	if err != nil {
+		return "", errors.New("Could not build query: " + err.Error())
+	}
+	q += where
+	return q, nil
+}
+
 //SaveSQL builds SQL query and parameters for saving data
 func SaveSQL(schemaName, tableName string, cols []Column) (string, []interface{}, error) {
 	query := "insert into " + schemaName + "." + tableName + " "
@@ -125,12 +136,13 @@ func primaryKeyWhereSQL(cols []Column) (string, error) {
 		}
 	}
 	if len(ret) == 0 {
-		return "", errors.New("Primary key not found (StrPrimaryKeyWhereSQL")
+		return "", errors.New("Primary key not found in []Column")
 	}
 	return ret, nil
 }
 
 //primaryKeyCols filters primary key columns from []Column
+//TODO: unused?
 func primaryKeyCols(cols []Column) []Column {
 	var ret []Column
 	for _, c := range cols {
