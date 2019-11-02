@@ -1,26 +1,11 @@
 package mysql
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
 )
-
-func cols2json(table string, cols []db.Column) ([]byte, error) {
-	var ret map[string]interface{}
-	ret = make(map[string]interface{})
-	ret["type"] = table
-	for _, col := range cols {
-		ret[col.Field] = col.Value
-	}
-	json, err := json.Marshal(ret)
-	if err != nil {
-		return []byte(""), err
-	}
-	return json, nil
-}
 
 func findColIndex(field string, cols []db.Column) int {
 	for index, col := range cols {

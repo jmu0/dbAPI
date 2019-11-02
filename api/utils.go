@@ -86,3 +86,18 @@ func values2columns(cols *[]db.Column, values map[string]interface{}) {
 		}
 	}
 }
+
+func cols2json(table string, cols []db.Column) ([]byte, error) {
+	//TODO: delete this function?
+	var ret map[string]interface{}
+	ret = make(map[string]interface{})
+	ret["type"] = table
+	for _, col := range cols {
+		ret[col.Field] = col.Value
+	}
+	json, err := json.Marshal(ret)
+	if err != nil {
+		return []byte(""), err
+	}
+	return json, nil
+}
