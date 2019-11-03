@@ -38,12 +38,12 @@ func interface2string(val interface{}) string {
 	}
 	switch t := val.(type) {
 	case string:
-		value += "\"" + Escape(val.(string)) + "\""
+		value += "'" + Escape(val.(string)) + "'"
 	case int, int32, int64:
 		value += strconv.Itoa(val.(int))
 	default:
 		fmt.Println(t)
-		value += "\"" + Escape(val.(string)) + "\""
+		value += "'" + Escape(val.(string)) + "'"
 	}
 	return value
 }

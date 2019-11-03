@@ -94,16 +94,16 @@ func skipDb(name string) bool {
 }
 
 //GetTableNames from database
-func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
+func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	tbls := []string{}
-	query := "show tables in " + databaseName
+	query := "show tables in " + schemaName
 	rows, err := c.conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	if rows == nil {
-		return nil, errors.New("No tables found in " + databaseName)
+		return nil, errors.New("No tables found in " + schemaName)
 	}
 	tableName := ""
 	for rows.Next() {
@@ -114,7 +114,7 @@ func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
 }
 
 //GetRelationships from database table
-func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Relationship, error) {
+func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
 	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
 			group_concat(column_name separator ", ") as fromCols,
@@ -122,8 +122,8 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 			group_concat(referenced_column_name separator ", ") as toCols
 			from (select constraint_name, table_schema,table_name,column_name,referenced_table_schema,referenced_table_name, 
 			referenced_column_name from information_schema.key_column_usage
-			where (referenced_table_schema="` + databaseName + `" and referenced_table_name="` + tableName + `") 
-			or (table_schema="` + databaseName + `" and table_name="` + tableName + `")
+			where (referenced_table_schema="` + schemaName + `" and referenced_table_name="` + tableName + `") 
+			or (table_schema="` + schemaName + `" and table_name="` + tableName + `")
 			and constraint_name <> "PRIMARY"
 			) as relations group by fromTbl, toTbl`
 	// log.Println("DEBUG:", query)
@@ -138,9 +138,9 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 			ToTable:   r["toTbl"].(string),
 			ToCols:    r["toCols"].(string),
 		}
-		if rel.FromTable == databaseName+"."+tableName {
+		if rel.FromTable == schemaName+"."+tableName {
 			rel.Cardinality = "many-to-one"
-		} else if rel.ToTable == databaseName+"."+tableName {
+		} else if rel.ToTable == schemaName+"."+tableName {
 			rel.Cardinality = "one-to-many"
 		}
 		ret = append(ret, rel)
@@ -149,11 +149,11 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 }
 
 //GetColumns from database table
-func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
+func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	cols := []db.Column{}
 	var col db.Column
 	var field, tp, null, key, def, extra string
-	query := "show columns from " + databaseName + "." + tableName
+	query := "show columns from " + schemaName + "." + tableName
 	//TODO: waarom zie ik geen auto_increment in kolom Extra?? omdat string niet <nil> kan zijn. verander def in interface
 	rows, err := c.conn.Query(query)
 	defer rows.Close()

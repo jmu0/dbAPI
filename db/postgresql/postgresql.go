@@ -94,16 +94,16 @@ func skipDb(name string) bool {
 }
 
 //GetTableNames from database
-func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
+func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	tbls := []string{}
-	query := "select table_name from information_schema.tables where table_schema='" + strings.ToLower(databaseName) + "'"
+	query := "select table_name from information_schema.tables where table_schema='" + strings.ToLower(schemaName) + "'"
 	rows, err := c.conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	if rows == nil {
-		return nil, errors.New("No tables found in " + databaseName)
+		return nil, errors.New("No tables found in " + schemaName)
 	}
 	tableName := ""
 	for rows.Next() {
@@ -114,7 +114,7 @@ func (c *Conn) GetTableNames(databaseName string) ([]string, error) {
 }
 
 //GetRelationships from database table
-func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Relationship, error) {
+func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
 	query := fmt.Sprintf(`select fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols from (SELECT
 		concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
@@ -132,7 +132,7 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 	WHERE tc.constraint_type = 'FOREIGN KEY' 
 	AND ((tc.table_schema='%s' and tc.table_name='%s') 
 		or (ccu.table_schema='%s' and ccu.table_name='%s'))) as regels
-		group by fromTbl, toTbl`, databaseName, tableName, databaseName, tableName)
+		group by fromTbl, toTbl`, schemaName, tableName, schemaName, tableName)
 	res, err := db.Query(c, query)
 	//TODO: check if this matters: on constraints with multiple columns the order of the columns can be different
 	if err != nil {
@@ -145,9 +145,9 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 			ToTable:   r["totbl"].(string),
 			ToCols:    r["tocols"].(string),
 		}
-		if rel.FromTable == databaseName+"."+tableName {
+		if rel.FromTable == schemaName+"."+tableName {
 			rel.Cardinality = "many-to-one"
-		} else if rel.ToTable == databaseName+"."+tableName {
+		} else if rel.ToTable == schemaName+"."+tableName {
 			rel.Cardinality = "one-to-many"
 		}
 		ret = append(ret, rel)
@@ -156,15 +156,16 @@ func (c *Conn) GetRelationships(databaseName string, tableName string) ([]db.Rel
 }
 
 //GetColumns from database table
-func (c *Conn) GetColumns(databaseName, tableName string) ([]db.Column, error) {
+func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	query := fmt.Sprintf(`select c.column_name,
 	c.data_type, c.character_maximum_length, c.is_nullable, c.column_default,
 	COALESCE((select tc.constraint_type from information_schema.key_column_usage kc
 	inner join information_schema.table_constraints tc 
 		on kc.constraint_catalog=tc.constraint_catalog and kc.constraint_schema=tc.constraint_schema and kc.constraint_name=tc.constraint_name
-	where tc.table_catalog=c.table_catalog and tc.table_schema=c.table_schema and  tc.table_name=c.table_name and kc.column_name = c.column_name),'') as key
+	where tc.table_catalog=c.table_catalog and tc.table_schema=c.table_schema and  tc.table_name=c.table_name and kc.column_name = c.column_name
+	and tc.constraint_type='PRIMARY KEY'),'') as key
 	from information_schema.columns c
-	where c.table_schema='%s' and c.table_name='%s'`, databaseName, tableName)
+	where c.table_schema='%s' and c.table_name='%s'`, schemaName, tableName)
 	cols := []db.Column{}
 	var col db.Column
 	var name, tp, ln, null string

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
@@ -47,6 +48,20 @@ func ServeQuery(con db.Conn, query string, w http.ResponseWriter) error {
 	//write result
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Encoding", "gzip")
+	w.Write(bytes)
+	return nil
+}
+
+//ServeExecuteResult returns result for a query that doesn't return rows
+func ServeExecuteResult(rowsAffected int64, w http.ResponseWriter) error {
+	bytes, err := json.Marshal(map[string]string{
+		"n": strconv.FormatInt(rowsAffected, 10),
+	})
+	if err != nil {
+		http.Error(w, "", http.StatusInternalServerError)
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Write(bytes)
 	return nil
 }

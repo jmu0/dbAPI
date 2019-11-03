@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 //Query queries the database
@@ -47,24 +48,24 @@ func Query(c Conn, query string) ([]map[string]interface{}, error) {
 }
 
 //Execute executes query without returning results. returns (lastInsertId, rowsAffected, error)
-func Execute(c Conn, query string, params []interface{}) (int64, int64, error) {
-	res, err := c.GetConnection().Exec(query, params)
+func Execute(c Conn, query string) (int64, error) {
+	fmt.Println(query)
+	res, err := c.GetConnection().Exec(query)
 	if err != nil {
-		return 0, 0, err
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
-	return id, n, nil
+	return n, nil
 }
 
 //SelectSQL builds SQL query for selecting record by PrimaryKey
 func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
+	if cols == nil {
+		return "select * from " + schemaName + "." + tableName, nil
+	}
 	q := "select * from " + schemaName + "." + tableName + " where "
 	where, err := primaryKeyWhereSQL(cols)
 	if err != nil {
@@ -74,14 +75,87 @@ func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
 	return q, nil
 }
 
+//QuerySQL builds SQL query, construct WHERE statement from ESCAPED map[string]string
+func QuerySQL(schemaName, tableName string, query map[string]string) (string, error) {
+	if query == nil {
+		return "", errors.New("No query")
+	}
+	var q string = "select * from " + schemaName + "." + tableName + " where "
+	var where string = ""
+	for k, v := range query {
+		if len(where) > 0 {
+			where += ", and "
+		}
+		if v[:2] == ">=" {
+			where += k + " >= '" + v[2:] + "' "
+		} else if v[:2] == "<=" {
+			where += k + " <= '" + v[2:] + "' "
+		} else if v[:1] == ">" {
+			where += k + " > '" + v[1:] + "' "
+		} else if v[:1] == "<" {
+			where += k + " < '" + v[1:] + "' "
+		} else if v[:1] == "*" && string(v[len(v)-1]) == "*" {
+			where += k + " like '%" + v[1:len(v)-1] + "%' "
+		} else if v[:1] == "*" {
+			where += k + " like '%" + v[1:] + "' "
+		} else if string(v[len(v)-1]) == "*" {
+			where += k + " like '" + v[:len(v)-1] + "%' "
+		} else {
+			where += k + " = '" + v + "' "
+		}
+	}
+	if len(where) == 0 {
+		return "", errors.New("No query")
+	}
+	q += where
+	return q, nil
+}
+
 //SaveSQL builds SQL query and parameters for saving data
-func SaveSQL(schemaName, tableName string, cols []Column) (string, []interface{}, error) {
+// ON DUPLICATE KEY is different in postgres, only do update and delete queries
+// func SaveSQL(schemaName, tableName string, cols []Column) (string, []interface{}, error) {
+// 	query := "insert into " + schemaName + "." + tableName + " "
+// 	fields := "("
+// 	strValues := "("
+// 	insValues := make([]interface{}, 0)
+// 	updValues := make([]interface{}, 0)
+// 	strUpdate := ""
+// 	for _, c := range cols {
+// 		if c.Value != nil {
+// 			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
+// 				if len(fields) > 1 {
+// 					fields += ", "
+// 				}
+// 				fields += c.Name
+// 				if len(strValues) > 1 {
+// 					strValues += ", "
+// 				}
+// 				strValues += "?"
+// 				insValues = append(insValues, c.Value)
+// 				if len(strUpdate) > 0 {
+// 					strUpdate += ", "
+// 				}
+// 				strUpdate += c.Name + "=?"
+// 				updValues = append(updValues, c.Value)
+// 			}
+// 		}
+// 	}
+// 	if len(fields) == 1 {
+// 		return "", make([]interface{}, 0), errors.New("No columns contains a value")
+// 	}
+// 	fields += ")"
+// 	strValues += ")"
+// 	query += fields + " values " + strValues
+// 	query += " on duplicate key update " + strUpdate
+// 	insValues = append(insValues, updValues...)
+// 	return query, insValues, nil
+// }
+
+//InsertSQL builds SQL query and parameters for inserting data
+func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
 	query := "insert into " + schemaName + "." + tableName + " "
 	fields := "("
 	strValues := "("
-	insValues := make([]interface{}, 0)
-	updValues := make([]interface{}, 0)
-	strUpdate := ""
 	for _, c := range cols {
 		if c.Value != nil {
 			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
@@ -92,30 +166,48 @@ func SaveSQL(schemaName, tableName string, cols []Column) (string, []interface{}
 				if len(strValues) > 1 {
 					strValues += ", "
 				}
-				strValues += "?"
-				insValues = append(insValues, c.Value)
-				if len(strUpdate) > 0 {
-					strUpdate += ", "
-				}
-				strUpdate += c.Name + "=?"
-				updValues = append(updValues, c.Value)
+				strValues += interface2string(c.Value)
 			}
 		}
 	}
 	if len(fields) == 1 {
-		return "", make([]interface{}, 0), errors.New("No columns contains a value")
+		return "", errors.New("No columns contains a value")
 	}
 	fields += ")"
 	strValues += ")"
 	query += fields + " values " + strValues
-	query += " on duplicate key update " + strUpdate
-	insValues = append(insValues, updValues...)
-	return query, insValues, nil
+	return query, nil
+}
+
+//UpdateSQL builds SQL query and parameters for updating data
+func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
+	query := "update " + schemaName + "." + tableName + " set "
+	fields := ""
+	for _, c := range cols {
+		if c.Value != nil {
+			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
+				if len(fields) > 0 {
+					fields += ", "
+				}
+				fields += c.Name + "=" + interface2string(c.Value)
+			}
+		}
+	}
+	if len(fields) == 0 {
+		return "", errors.New("No columns contains a value")
+	}
+	query += fields + " where "
+	where, err := primaryKeyWhereSQL(cols)
+	if err != nil {
+		return "", err
+	}
+	query += where
+	return query, nil
 }
 
 //DeleteSQL builds SQL query for deleting data
 func DeleteSQL(schemaName, tableName string, cols []Column) (string, error) {
-	query := "delete from " + schemaName + "." + tableName + " where"
+	query := "delete from " + schemaName + "." + tableName + " where "
 	where, err := primaryKeyWhereSQL(cols)
 	if err != nil {
 		return "", err
@@ -129,6 +221,9 @@ func primaryKeyWhereSQL(cols []Column) (string, error) {
 	var ret string
 	for _, c := range cols {
 		if c.PrimaryKey == true {
+			if c.Value == nil {
+				return "", errors.New("Primary key column " + c.Name + " has no value")
+			}
 			if len(ret) > 0 {
 				ret += " and"
 			}

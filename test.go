@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jmu0/dbAPI/api"
 	"github.com/jmu0/dbAPI/db"
 
-	"github.com/jmu0/dbAPI/api"
 	"github.com/jmu0/dbAPI/db/mysql"
 	"github.com/jmu0/dbAPI/db/postgresql"
 )
@@ -16,7 +16,8 @@ var listenAddr = ":8282"
 
 func main() {
 	// testMysql()
-	testPostgres()
+	// testPostgres()
+	runServer()
 }
 
 func testPostgres() {
@@ -67,39 +68,39 @@ func testMysql() {
 }
 
 func testGraphql() {
-	mx := http.NewServeMux()
-	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Test!"))
-	})
+	// mx := http.NewServeMux()
+	// mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Write([]byte("Test!"))
+	// })
 
-	//*
-	mx.HandleFunc("/data/", func(w http.ResponseWriter, r *http.Request) {
-		api.HandleREST("/data", w, r)
-	})
-	//*/
+	// //*
+	// mx.HandleFunc("/data/", func(w http.ResponseWriter, r *http.Request) {
+	// 	api.HandleREST("/data", w, r)
+	// })
+	// //*/
 
-	// schema, err := mysql.TestSchema()
-	schema, err := api.BuildSchema(api.BuildSchemaArgs{
-		Tables: []string{
-			"Assortiment.Artikel",
-			"Assortiment.Maat",
-			"Assortiment.Plant",
-			"Assortiment.Categorie",
-			"Assortiment.Voorraad",
-			"Assortiment.Prijslijst",
-		},
-		// Tables: []string{"Assortiment.Plant"},
-	})
+	// // schema, err := mysql.TestSchema()
+	// schema, err := api.BuildSchema(api.BuildSchemaArgs{
+	// 	Tables: []string{
+	// 		"Assortiment.Artikel",
+	// 		"Assortiment.Maat",
+	// 		"Assortiment.Plant",
+	// 		"Assortiment.Categorie",
+	// 		"Assortiment.Voorraad",
+	// 		"Assortiment.Prijslijst",
+	// 	},
+	// 	// Tables: []string{"Assortiment.Plant"},
+	// })
 
-	if err != nil {
-		fmt.Println("Schema error:", err)
-	}
-	mx.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
-		api.HandleGQL(&schema, w, r)
-	})
+	// if err != nil {
+	// 	fmt.Println("Schema error:", err)
+	// }
+	// mx.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+	// 	api.HandleGQL(&schema, w, r)
+	// })
 
-	fmt.Println("Listening on port", listenAddr)
-	log.Fatal(http.ListenAndServe(listenAddr, mx))
+	// fmt.Println("Listening on port", listenAddr)
+	// log.Fatal(http.ListenAndServe(listenAddr, mx))
 
 }
 
@@ -113,4 +114,20 @@ func printdbcols(cols []db.Column) {
 		fmt.Println("default value:", c.DefaultValue)
 		fmt.Println("value:", c.Value)
 	}
+}
+func runServer() {
+	port := ":9999"
+	mx := http.NewServeMux()
+	c := postgresql.Conn{}
+	log.Println(c.Connect(map[string]string{
+		"hostname": "localhost",
+		"username": "jos",
+		"password": "jmu0!",
+		"database": "test",
+	}))
+
+	mx.HandleFunc("/data/", api.RestHandler("/data", &c))
+
+	log.Println("Listening on port", port)
+	log.Fatal(http.ListenAndServe(port, mx))
 }

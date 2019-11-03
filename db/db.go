@@ -7,9 +7,10 @@ type Conn interface {
 	Connect(args map[string]string) error
 	GetConnection() *sql.DB
 	GetSchemaNames() ([]string, error)
-	GetTableNames(databaseName string) ([]string, error)
-	GetRelationships(databaseName string, tableName string) ([]Relationship, error)
-	GetColumns(databaseName, tableName string) ([]Column, error)
+	GetTableNames(schemaName string) ([]string, error)
+	GetRelationships(schemaName string, tableName string) ([]Relationship, error)
+	GetColumns(schemaName, tableName string) ([]Column, error)
+	//TODO: add cache for schema data
 }
 
 //Column holds column data

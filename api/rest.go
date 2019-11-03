@@ -1,229 +1,355 @@
 package api
 
-// import (
-// 	"encoding/json"
-// 	"fmt"
-// 	"log"
-// 	"net/http"
-// 	"strconv"
-// 	"strings"
-// )
+import (
+	"encoding/json"
+	"errors"
+	"log"
+	"net/http"
+	"strings"
 
-// //HandleREST handle REST api for DbObject
-// func HandleREST(pathPrefix string, w http.ResponseWriter, r *http.Request) string {
-// 	//TODO: compress results
-// 	var objStr = r.URL.Path
-// 	db, err := Connect()
-// 	if err != nil {
-// 		http.Error(w, "REST: Could not connect to database", http.StatusInternalServerError)
-// 		return ""
-// 	}
-// 	if pathPrefix[0] != '/' {
-// 		pathPrefix = "/" + pathPrefix
-// 	}
-// 	objStr = strings.Replace(objStr, pathPrefix, "", 1)
-// 	if len(objStr) == 0 {
-// 		http.NotFound(w, r)
-// 		return ""
-// 	}
-// 	if objStr[0] == '/' {
-// 		objStr = objStr[1:]
-// 	}
-// 	if objStr[len(objStr)-1] == '/' {
-// 		objStr = objStr[:len(objStr)-1]
-// 	}
-// 	//fmt.Println("REST DEBUG: objStr:", objStr)
-// 	oParts := strings.Split(objStr, "/")
-// 	var rDB, rTBL, rKey string
-// 	if len(oParts) > 0 {
-// 		rDB = Escape(oParts[0])
-// 	}
-// 	if len(oParts) > 1 {
-// 		rTBL = Escape(oParts[1])
-// 	}
-// 	if len(oParts) > 2 {
-// 		//KEYS WITH / USE "
-// 		rKey = Escape(strings.Join(oParts[2:], "/"))
-// 		if rKey[:2] == "\\\"" && rKey[len(rKey)-2:] == "\\\"" {
-// 			rKey = rKey[2 : len(rKey)-2]
-// 		}
-// 		if rKey[:1] == "\"" && rKey[len(rKey)-1:] == "\"" {
-// 			rKey = rKey[1 : len(rKey)-1]
-// 		}
-// 	}
-// 	// log.Println("DEBUG rDB:", rDB, "rTBL:", rTBL, "rKey:", rKey)
+	"github.com/jmu0/dbAPI/db"
+)
 
-// 	switch len(oParts) {
-// 	case 1: //only db, write list of tables
-// 		if r.Method == "GET" {
-// 			// tbls := GetTableNames(db, objParts[0])
-// 			tbls := GetTableNames(db, rDB)
-// 			if len(tbls) > 0 {
-// 				bytes, err := json.Marshal(tbls)
-// 				if err != nil {
-// 					fmt.Println("HandleRest: error encoding json:", err)
-// 					http.Error(w, "Could not encode json", http.StatusInternalServerError)
-// 					return ""
-// 				}
-// 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-// 				w.Write(bytes)
-// 			} else {
-// 				http.Error(w, "Database doesn't exist", http.StatusNotFound)
-// 				return ""
-// 			}
-// 		} else {
-// 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-// 			return ""
-// 		}
-// 	case 2: //table, query rows
-// 		if r.Method == "GET" {
-// 			// q := "select * from " + objParts[0] + "." + objParts[1]
-// 			q := "select * from " + rDB + "." + rTBL
-// 			//TODO check for query
-// 			if where, ok := r.URL.Query()["q"]; ok != false {
-// 				q += " where " + Escape(where[0])
-// 				q = strings.Replace(q, "''", "'", -1)
-// 			}
-// 			// log.Println("DEBUG: REST query:", q)
-// 			writeQueryResults(db, q, w)
-// 		} else if r.Method == "POST" { //post to a db table url
-// 			// cols := getColsWithValues(db, objParts[0], objParts[1], r)
-// 			cols := getColsWithValues(db, rDB, rTBL, r)
-// 			if len(cols) == 0 {
-// 				http.Error(w, "REST: Object not found", http.StatusNotFound)
-// 				return ""
-// 			}
-// 			log.Println("POST:", r.URL.Path)
-// 			// n, id, err := save(objParts[0], objParts[1], cols)
-// 			n, id, err := save(rDB, rTBL, cols)
-// 			if err != nil {
-// 				log.Println("REST ERROR: POST:", oParts, err)
-// 				http.Error(w, "Could not save", http.StatusInternalServerError)
-// 				return ""
-// 			}
-// 			if n == 1 && id > -1 {
-// 				cols = setAutoIncColumn(id, cols)
-// 			}
-// 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-// 			w.Write([]byte("{\"n\":\"" + strconv.Itoa(n) + "\",\"id\":\"" + strconv.Itoa(id) + "\"}"))
-// 			// json, err := cols2json(objParts[1], cols)
-// 			json, err := cols2json(rTBL, cols)
-// 			if err != nil {
-// 				return ""
-// 			}
-// 			return string(json)
-// 		} else {
-// 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-// 			return ""
-// 		}
-// 		return ""
-// 	default: //table primary key, perform CRUD
-// 		//ERROR does not work when key contains backslash: case 3: //table primary key, perform CRUD
-// 		// fmt.Println("DEBUG: HandleRest:", cols)
-// 		switch r.Method {
-// 		case "GET":
-// 			log.Println("REST: GET:", oParts)
-// 			// cols := getColsWithValues(db, objParts[0], objParts[1], r)
-// 			cols := getColsWithValues(db, rDB, rTBL, r)
-// 			//put primary key values in columns
-// 			// keys := strings.Split(strings.Join(objParts[2:], "/"), ":")
-// 			keys := strings.Split(rKey, ":")
-// 			keyCounter := 0
-// 			for index, column := range cols {
-// 				if column.Key == "PRI" {
-// 					cols[index].Value = Escape(keys[keyCounter])
-// 					keyCounter++
-// 					if keyCounter == len(keys) {
-// 						break
-// 					}
-// 				}
-// 			}
-// 			// q := "select * from " + objParts[0] + "." + objParts[1] + " where "
-// 			q := "select * from " + rDB + "." + rTBL + " where "
-// 			where, err := StrPrimaryKeyWhereSQL(cols)
-// 			if err != nil {
-// 				http.Error(w, "Could not build query", http.StatusInternalServerError)
-// 				return ""
-// 			}
-// 			q += where
-// 			//log.Println("REST: GET: query ", q)
-// 			writeQueryResults(db, q, w)
-// 		case "POST": //post to a object id
-// 			// cols := getColsWithValues(db, objParts[0], objParts[1], r)
-// 			cols := getColsWithValues(db, rDB, rTBL, r)
-// 			if len(cols) == 0 {
-// 				http.Error(w, "Object not found", http.StatusNotFound)
-// 				return ""
-// 			}
-// 			//put primary key values in columns
-// 			// keys := strings.Split(strings.Join(objParts[2:], "/"), ":")
-// 			keys := strings.Split(rKey, ":")
-// 			keyCounter := 0
-// 			for index, column := range cols {
-// 				if column.Key == "PRI" {
-// 					cols[index].Value = Escape(keys[keyCounter])
-// 					keyCounter++
-// 					if keyCounter == len(keys) {
-// 						break
-// 					}
-// 				}
-// 			}
-// 			log.Println("POST:", r.URL.Path)
-// 			// log.Println("DEBUG:POST:", rDB, rTBL, keys)
-// 			// log.Println("DEBUG POST:", cols)
-// 			// n, id, err := save(objParts[0], objParts[1], cols)
-// 			n, id, err := save(rDB, rTBL, cols)
-// 			if err != nil {
-// 				log.Println("REST: ERROR: POST:", oParts, err)
-// 				http.Error(w, "Could not save", http.StatusInternalServerError)
-// 				return ""
-// 			}
-// 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-// 			w.Write([]byte("{\"n\":\"" + strconv.Itoa(n) + "\",\"id\":\"" + strconv.Itoa(id) + "\"}"))
-// 			// json, err := cols2json(objParts[1], cols)
-// 			json, err := cols2json(rTBL, cols)
-// 			if err != nil {
-// 				return ""
-// 			}
-// 			return string(json)
-// 		case "DELETE":
-// 			// cols := getColsWithValues(db, objParts[0], objParts[1], r)
-// 			cols := getColsWithValues(db, rDB, rTBL, r)
-// 			if len(cols) == 0 {
-// 				http.Error(w, "Object not found", http.StatusNotFound)
-// 				return ""
-// 			}
-// 			//put primary key values in columns
-// 			// keys := strings.Split(strings.Join(objParts[2:], "/"), ":")
-// 			keys := strings.Split(rKey, ":")
-// 			keyCounter := 0
-// 			for index, column := range cols {
-// 				if column.Key == "PRI" {
-// 					cols[index].Value = Escape(keys[keyCounter])
-// 					keyCounter++
-// 					if keyCounter == len(keys) {
-// 						break
-// 					}
-// 				}
-// 			}
-// 			log.Println("REST: DELETE:", oParts)
-// 			// n, err := delete(objParts[0], objParts[1], cols)
-// 			n, err := delete(rDB, rTBL, cols)
-// 			if err != nil {
-// 				log.Println("REST: ERROR: POST:", oParts, err)
-// 				http.Error(w, "Could not save", http.StatusInternalServerError)
-// 				return ""
-// 			}
-// 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-// 			w.Write([]byte("{\"n\":\"" + strconv.Itoa(n) + "\"}"))
-// 			return string(n)
-// 		default:
-// 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-// 			return ""
-// 		}
-// 		// default:
-// 		// 	http.Error(w, "Invalid Path", http.StatusInternalServerError)
-// 		// 	return ""
-// 	}
-// 	return ""
-// }
+type requestData struct {
+	SchemaName       string
+	TableName        string
+	PrimaryKeyValues []string
+	Query            map[string]string
+	FormData         map[string]string
+}
+
+func (rd *requestData) setPrimaryKeyValues(cols []db.Column) error {
+	var keyCounter = 0
+	for i, col := range cols {
+		if col.PrimaryKey == true {
+			if keyCounter > len(rd.PrimaryKeyValues)-1 {
+				return errors.New("More primary key columns than values")
+			}
+			cols[i].Value = rd.PrimaryKeyValues[keyCounter]
+			keyCounter++
+		}
+	}
+	if keyCounter < len(rd.PrimaryKeyValues)-1 {
+		return errors.New("More values than primary key columns")
+	}
+	return nil
+}
+func (rd *requestData) setColValues(cols []db.Column) error {
+	if rd.FormData == nil {
+		return errors.New("No form data")
+	}
+	for i, col := range cols {
+		if val, ok := rd.FormData[col.Name]; ok {
+			cols[i].Value = val
+		}
+	}
+	return nil
+}
+
+//RestHandler returns a http HandleFunc
+func RestHandler(pathPrefix string, c db.Conn) func(w http.ResponseWriter, r *http.Request) {
+	var rd requestData
+	var err error
+	return func(w http.ResponseWriter, r *http.Request) {
+		rd, err = parseRequest(r, pathPrefix)
+		if err != nil {
+			log.Println("REST error parsing request:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods: ", "GET, HEAD, PUT, POST, DELETE, OPTIONS")
+
+		switch r.Method {
+		case "GET":
+			log.Println("GET", r.URL.Path)
+			handleGet(c, rd, w)
+		case "OPTIONS":
+			log.Println("OPTIONS", r.URL.Path)
+			handleOptions(w, r)
+		case "PUT":
+			log.Println("PUT", r.URL.Path)
+			handlePut(c, rd, w)
+		case "POST":
+			log.Println("POST", r.URL.Path)
+			handlePost(c, rd, w)
+		case "DELETE":
+			log.Println("DELETE", r.URL.Path)
+			handleDelete(c, rd, w)
+		default:
+			log.Println(r.Method, "Not allowed")
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func parseRequest(r *http.Request, pathPrefix string) (requestData, error) {
+	var objStr = r.URL.Path
+	var rd requestData = requestData{}
+	var oParts []string
+	var rKey string
+
+	if pathPrefix[0] != '/' {
+		pathPrefix = "/" + pathPrefix
+	}
+	//check if there is a path
+	objStr = strings.Replace(objStr, pathPrefix, "", 1)
+	if len(objStr) == 0 || objStr == "/" {
+		return requestData{}, errors.New("Invalid path")
+	}
+	//remova leading and trailing slashes
+	if objStr[0] == '/' {
+		objStr = objStr[1:]
+	}
+	if objStr[len(objStr)-1] == '/' {
+		objStr = objStr[:len(objStr)-1]
+	}
+	//split path string
+	oParts = strings.Split(objStr, "/")
+	//get values from url
+	if len(oParts) > 0 {
+		rd.SchemaName = db.Escape(oParts[0])
+	}
+	if len(oParts) > 1 {
+		rd.TableName = db.Escape(oParts[1])
+	}
+	if len(oParts) > 2 {
+		rKey = db.Escape(strings.Join(oParts[2:], "/"))
+		if rKey[:2] == "\\\"" && rKey[len(rKey)-2:] == "\\\"" {
+			rKey = rKey[2 : len(rKey)-2]
+		}
+		if rKey[:1] == "\"" && rKey[len(rKey)-1:] == "\"" {
+			rKey = rKey[1 : len(rKey)-1]
+		}
+		rd.PrimaryKeyValues = strings.Split(rKey, ":")
+		for i, val := range rd.PrimaryKeyValues {
+			rd.PrimaryKeyValues[i] = db.Escape(val)
+		}
+	}
+	if query, ok := r.URL.Query()["q"]; ok != false {
+		if query[0][:1] == "{" {
+			q := make(map[string]string)
+			err := json.Unmarshal([]byte(query[0]), &q)
+			if err != nil {
+				return requestData{}, err
+			}
+			rd.Query = make(map[string]string)
+			for k, v := range q {
+				rd.Query[db.Escape(k)] = db.Escape(v)
+			}
+		}
+	}
+	//get form values
+	err := r.ParseForm()
+	if err == nil {
+		rd.FormData = make(map[string]string)
+		for k, v := range r.Form {
+			rd.FormData[db.Escape(k)] = db.Escape(strings.Join(v, ""))
+		}
+	}
+	return rd, nil
+}
+
+//optionsHandler needed for Access-Control-Allow-Origin
+func handleOptions(w http.ResponseWriter, r *http.Request) {
+	var allow string
+	if headers, ok := r.Header["Access-Control-Request-Headers"]; ok == true {
+		for _, header := range headers {
+			if len(allow) > 0 {
+				allow += ", "
+			}
+			allow += header
+		}
+	}
+	if len(allow) > 0 {
+		w.Header().Set("Access-Control-Allow-Headers", allow)
+	}
+}
+
+func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
+	if rd.SchemaName != "" && rd.TableName != "" {
+		if len(rd.PrimaryKeyValues) != 0 {
+			//get by primary key
+			cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			err = rd.setPrimaryKeyValues(cols)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			// log.Println("DEBUG", cols)
+			q, err := db.SelectSQL(rd.SchemaName, rd.TableName, cols)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			err = ServeQuery(c, q, w)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+		} else if rd.Query != nil {
+			//perform query
+			q, err := db.QuerySQL(rd.SchemaName, rd.TableName, rd.Query)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			err = ServeQuery(c, q, w)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+		} else {
+			//return all rows in table
+			q, err := db.SelectSQL(rd.SchemaName, rd.TableName, nil)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			err = ServeQuery(c, q, w)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+		}
+	} else {
+		http.Error(w, "Not found", http.StatusNotFound)
+		log.Println("REST error: invalid url")
+		return
+	}
+}
+
+func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
+	if rd.SchemaName != "" && rd.TableName != "" {
+		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		err = rd.setColValues(cols)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		query, err := db.InsertSQL(rd.SchemaName, rd.TableName, cols)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("REST error:", err)
+			return
+		}
+
+		// err = ServeQuery(c, query, w)
+		n, err := db.Execute(c, query)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("REST error:", err)
+			return
+		}
+		err = ServeExecuteResult(n, w)
+		if err != nil {
+			log.Println("REST error:", err)
+		}
+	} else {
+		http.Error(w, "Not found", http.StatusNotFound)
+		log.Println("REST error: invalid url")
+		return
+	}
+}
+
+func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
+	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) > 0 {
+		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		err = rd.setColValues(cols)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		if len(rd.PrimaryKeyValues) > 0 {
+			err = rd.setPrimaryKeyValues(cols)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+		}
+		query, err := db.UpdateSQL(rd.SchemaName, rd.TableName, cols)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("REST error:", err)
+			return
+		}
+		// err = ServeQuery(c, query, w)
+		n, err := db.Execute(c, query)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("REST error:", err)
+			return
+		}
+		err = ServeExecuteResult(n, w)
+		if err != nil {
+			log.Println("REST error:", err)
+		}
+	} else {
+		http.Error(w, "Not found", http.StatusNotFound)
+		log.Println("REST error: invalid url")
+		return
+	}
+}
+
+func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
+	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) != 0 {
+		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		err = rd.setPrimaryKeyValues(cols)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		q, err := db.DeleteSQL(rd.SchemaName, rd.TableName, cols)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error:", err)
+			return
+		}
+		// err = ServeQuery(c, q, w)
+		n, err := db.Execute(c, q)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("REST error:", err)
+			return
+		}
+		err = ServeExecuteResult(n, w)
+		if err != nil {
+			log.Println("REST error:", err)
+		}
+	} else {
+		http.Error(w, "Not found", http.StatusNotFound)
+		log.Println("REST error: invalid url")
+		return
+	}
+}
