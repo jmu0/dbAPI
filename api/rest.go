@@ -271,6 +271,7 @@ func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
 }
 
 func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
+	//TODO: handle not found, now retuns n:0
 	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) > 0 {
 		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
 		if err != nil {
@@ -318,6 +319,7 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 
 func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) != 0 {
+		//TODO: handle not found, now returns n:0
 		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
