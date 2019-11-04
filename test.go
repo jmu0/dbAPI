@@ -15,9 +15,9 @@ import (
 var listenAddr = ":8282"
 
 func main() {
-	// testMysql()
+	testMysql()
 	// testPostgres()
-	runServer()
+	// runServer()
 }
 
 func testPostgres() {
@@ -47,8 +47,8 @@ func testPostgres() {
 func testMysql() {
 	var d = mysql.Conn{}
 	err := d.Connect(map[string]string{
-		"hostname": "database",
-		"username": "web",
+		"hostname": "jos-desktop",
+		"username": "root",
 		"password": "jmu0!",
 	})
 	if err != nil {
@@ -64,7 +64,9 @@ func testMysql() {
 	// c, _ := d.GetColumns("Assortiment", "Plant")
 	// printdbcols(c)
 	fmt.Println("\nRelationships for Assortiment.Artikel:")
+	fmt.Println(d.GetRelationships("Assortiment", "Plant"))
 	fmt.Println(d.GetRelationships("Assortiment", "Artikel"))
+	fmt.Println(d.GetRelationships("Assortiment", "Voorraade"))
 }
 
 func testGraphql() {
