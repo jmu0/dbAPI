@@ -85,7 +85,7 @@ func RestHandler(pathPrefix string, c db.Conn) func(w http.ResponseWriter, r *ht
 
 func parseRequest(r *http.Request, pathPrefix string) (requestData, error) {
 	var objStr = r.URL.Path
-	var rd requestData = requestData{}
+	var rd = requestData{}
 	var oParts []string
 	var rKey string
 
