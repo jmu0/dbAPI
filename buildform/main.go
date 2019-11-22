@@ -4,28 +4,29 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 
+	"github.com/jmu0/dbAPI/db"
 	"github.com/jmu0/dbAPI/db/mysql"
+	"github.com/jmu0/dbAPI/db/postgresql"
 )
 
 var conn *sql.DB
 var err error
-var db, table string
+var database, table string
 var tables, dbs []string
-var cols []mysql.Column
+var cols []db.Column
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println("invalid args")
+		fmt.Println("invalid args (html/template)")
 		return
 	}
 	switch os.Args[1] {
 	case "html":
-		var html = cols2form(getCols())
-		fmt.Print("Bestandsnaam (" + strings.ToLower(table) + ".html)?")
+		var html = cols2form(getCols(connect()))
+		fmt.Print("Filename (" + strings.ToLower(table) + ".html)?")
 		var filename string
 		fmt.Scanln(&filename)
 		if len(filename) == 0 {
@@ -36,8 +37,8 @@ func main() {
 			fmt.Println("ERROR:", err)
 		}
 	case "template":
-		var html = cols2template(getCols())
-		fmt.Print("Bestandsnaam (" + strings.ToLower(table) + ".html)?")
+		var html = cols2template(getCols(connect()))
+		fmt.Print("Filename (" + strings.ToLower(table) + ".html)?")
 		var filename string
 		fmt.Scanln(&filename)
 		if len(filename) == 0 {
@@ -48,30 +49,76 @@ func main() {
 			fmt.Println("ERROR:", err)
 		}
 	default:
-		fmt.Println("invalid args")
+		fmt.Println("invalid args (html/template)")
 	}
 }
 
-func getCols() []mysql.Column {
-	conn, err = mysql.Connect(map[string]string{
-		"hostname": "database",
-		"username": "web",
-		"password": "jmu0!",
-	})
-	if err != nil {
-		log.Fatal(err)
+func connect() db.Conn {
+	var err error
+	var tp, host, user, pwd string
+	fmt.Print("Dababase type (mysql, postgresql): ")
+	fmt.Scanln(&tp)
+	fmt.Print("Host: ")
+	fmt.Scanln(&host)
+	fmt.Print("User: ")
+	fmt.Scanln(&user)
+	fmt.Print("Password: ")
+	fmt.Scanln(&pwd)
+	if tp == "mysql" {
+		c := mysql.Conn{}
+		err = c.Connect(map[string]string{
+			"hostname": host,
+			"username": user,
+			"password": pwd,
+		})
+		if err != nil {
+			panic(err)
+		}
+		return &c
+	} else if tp == "postgresql" {
+		var database string
+		fmt.Print("Database: ")
+		fmt.Scanln(&database)
+		c := postgresql.Conn{}
+		err = c.Connect(map[string]string{
+			"hostname": host,
+			"username": user,
+			"password": pwd,
+			"database": database,
+		})
+		if err != nil {
+			panic(err)
+		}
+		return &c
+	} else {
+		panic("invalid type: " + tp)
 	}
-	dbs = mysql.GetDatabaseNames(conn)
+}
+
+func getCols(c db.Conn) []db.Column {
+	var err error
+	var ret []db.Column
+	dbs, err = c.GetSchemaNames()
+	if err != nil {
+		panic(err)
+	}
 	for _, db := range dbs {
 		fmt.Println(db)
 	}
-	fmt.Print("Database: ")
-	fmt.Scanln(&db)
-	tables = mysql.GetTableNames(conn, db)
+	fmt.Print("Schema: ")
+	fmt.Scanln(&database)
+	tables, err = c.GetTableNames(database)
+	if err != nil {
+		panic(err)
+	}
 	for _, tbl := range tables {
 		fmt.Println(tbl)
 	}
 	fmt.Print("Table: ")
 	fmt.Scanln(&table)
-	return mysql.GetColumns(conn, db, table)
+	ret, err = c.GetColumns(database, table)
+	if err != nil {
+		panic(err)
+	}
+	return ret
 }
