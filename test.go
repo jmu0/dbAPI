@@ -86,23 +86,8 @@ func testGraphql() {
 		fmt.Println(err)
 		return
 	}
-	//*
-	// mx.HandleFunc("/data/", func(w http.ResponseWriter, r *http.Request) {
-	// 	api.HandleREST("/data", w, r)
-	// })
-	//*/
 
-	// schema, err := mysql.TestSchema()
 	schema, err := api.BuildSchema(api.BuildSchemaArgs{
-		// Tables: []string{
-		// 	"Assortiment.Artikel",
-		// 	"Assortiment.Maat",
-		// 	"Assortiment.Plant",
-		// 	"Assortiment.Categorie",
-		// 	"Assortiment.Voorraad",
-		// 	"Assortiment.Prijslijst",
-		// },
-		// Tables: []string{"Assortiment.Plant"},
 		Tables: []string{},
 	}, &d)
 
