@@ -17,6 +17,8 @@ type Conn struct {
 	conn *sql.DB
 }
 
+var schemaCache map[string][]db.Column
+
 //GetConnection returns connection *sql.DB
 func (c *Conn) GetConnection() *sql.DB {
 	return c.conn
@@ -150,6 +152,12 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 
 //GetColumns from database table
 func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
+	if schemaCache == nil {
+		schemaCache = make(map[string][]db.Column)
+	}
+	if _, ok := schemaCache[schemaName+"."+tableName]; ok {
+		return schemaCache[schemaName+"."+tableName], nil
+	}
 	cols := []db.Column{}
 	var col db.Column
 	var field, tp, null, key, def, extra interface{}
@@ -163,7 +171,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 				Name:         db.Interface2string(field, false),
 				DefaultValue: db.Interface2string(def, false),
 			}
-			if key == "PRI" {
+			if db.Interface2string(key, false) == "PRI" {
 				col.PrimaryKey = true
 			} else {
 				col.PrimaryKey = false
@@ -182,6 +190,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			cols = append(cols, col)
 		}
 	}
+	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil
 }
 

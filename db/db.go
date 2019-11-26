@@ -10,7 +10,6 @@ type Conn interface {
 	GetTableNames(schemaName string) ([]string, error)
 	GetRelationships(schemaName string, tableName string) ([]Relationship, error)
 	GetColumns(schemaName, tableName string) ([]Column, error)
-	//TODO: add cache for schema data
 }
 
 //Column holds column data

@@ -16,8 +16,8 @@ var listenAddr = ":8282"
 
 func main() {
 	// testMysql()
-	testPostgres()
-	// runAPIServer()
+	// testPostgres()
+	runAPIServer()
 	// testGraphql()
 }
 
@@ -40,9 +40,7 @@ func testPostgres() {
 	// fmt.Println(pg.GetTableNames("public"))
 	fmt.Println("\nGet columns for tbl1:")
 	cols, err := pg.GetColumns("public", "tbl1")
-	for _, c := range cols {
-		fmt.Println(c)
-	}
+	printdbcols(cols)
 	// c, err := pg.GetColumns("assortiment", "plant")
 	// printdbcols(c)
 	// fmt.Println("\nRelationships for assortiment.artikel:")
@@ -52,7 +50,7 @@ func testMysql() {
 	var d = mysql.Conn{}
 	err := d.Connect(map[string]string{
 		"hostname": "jos-desktop",
-		"username": "root",
+		"username": "web",
 		"password": "jmu0!",
 	})
 	if err != nil {
@@ -67,10 +65,12 @@ func testMysql() {
 	fmt.Println(d.GetColumns("Verkoop", "Orderregels"))
 	// c, _ := d.GetColumns("Assortiment", "Plant")
 	// printdbcols(c)
-	fmt.Println("\nRelationships for Assortiment.Artikel:")
-	fmt.Println(d.GetRelationships("Assortiment", "Plant"))
-	fmt.Println(d.GetRelationships("Assortiment", "Artikel"))
-	fmt.Println(d.GetRelationships("Assortiment", "Voorraade"))
+	fmt.Println("\nRelationships for Assortiment.Plant:")
+	// fmt.Println(d.GetRelationships("Assortiment", "Plant"))
+	// fmt.Println("\nRelationships for Assortiment.Artikel:")
+	// fmt.Println(d.GetRelationships("Assortiment", "Artikel"))
+	// fmt.Println("\nRelationships for Assortiment.Voorraad:")
+	// fmt.Println(d.GetRelationships("Assortiment", "Voorraad"))
 }
 
 func testGraphql() {
@@ -78,12 +78,18 @@ func testGraphql() {
 	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Test!"))
 	})
-	var d = postgresql.Conn{}
+	// var d = postgresql.Conn{}
+	// err := d.Connect(map[string]string{
+	// 	"hostname": "jos-desktop",
+	// 	"username": "jos",
+	// 	"password": "jmu0!",
+	// 	"database": "test",
+	// })
+	var d = mysql.Conn{}
 	err := d.Connect(map[string]string{
 		"hostname": "jos-desktop",
-		"username": "jos",
+		"username": "web",
 		"password": "jmu0!",
-		"database": "test",
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -113,6 +119,7 @@ func printdbcols(cols []db.Column) {
 		fmt.Println("length:", c.Length)
 		fmt.Println("nullable:", c.Nullable)
 		fmt.Println("primary key:", c.PrimaryKey)
+		fmt.Println("auto increment:", c.AutoIncrement)
 		fmt.Println("default value:", c.DefaultValue)
 		fmt.Println("value:", c.Value)
 	}
@@ -120,14 +127,19 @@ func printdbcols(cols []db.Column) {
 func runAPIServer() {
 	port := ":9999"
 	mx := http.NewServeMux()
-	c := mysql.Conn{}
+	// c := mysql.Conn{}
+	// log.Println(c.Connect(map[string]string{
+	// 	"hostname": "jos-desktop",
+	// 	"username": "web",
+	// 	"password": "jmu0!",
+	// }))
+	c := postgresql.Conn{}
 	log.Println(c.Connect(map[string]string{
 		"hostname": "localhost",
-		"username": "web",
+		"username": "jos",
 		"password": "jmu0!",
-		"database": "Assortiment",
+		"database": "test",
 	}))
-
 	mx.HandleFunc("/data/", api.RestHandler("/data", &c))
 
 	log.Println("Listening on port", port)
