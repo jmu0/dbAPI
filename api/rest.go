@@ -182,7 +182,6 @@ func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
 				log.Println("REST error:", err)
 				return
 			}
-			// log.Println("DEBUG", cols)
 			q, err := db.SelectSQL(rd.SchemaName, rd.TableName, cols)
 			if err != nil {
 				http.Error(w, "Not found", http.StatusNotFound)
@@ -298,7 +297,6 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
-		// err = ServeQuery(c, query, w)
 		n, err := db.Execute(c, query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
