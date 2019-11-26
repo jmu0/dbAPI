@@ -16,9 +16,9 @@ var listenAddr = ":8282"
 
 func main() {
 	// testMysql()
-	// testPostgres()
+	testPostgres()
 	// runAPIServer()
-	testGraphql()
+	// testGraphql()
 }
 
 func testPostgres() {
@@ -36,10 +36,10 @@ func testPostgres() {
 	}
 	fmt.Println("\nSchema names in database:")
 	fmt.Println(pg.GetSchemaNames())
-	fmt.Println("\nTables in assortiment:")
-	fmt.Println(pg.GetTableNames("Assortiment"))
-	fmt.Println("\nGet columns for assortiment.plant:")
-	fmt.Println(pg.GetColumns("assortiment", "plant"))
+	fmt.Println("\nTables in public:")
+	fmt.Println(pg.GetTableNames("public"))
+	fmt.Println("\nGet columns for tbl1:")
+	fmt.Println(pg.GetColumns("public", "tbl1"))
 	// c, err := pg.GetColumns("assortiment", "plant")
 	// printdbcols(c)
 	fmt.Println("\nRelationships for assortiment.artikel:")
@@ -60,8 +60,8 @@ func testMysql() {
 	fmt.Println(d.GetSchemaNames())
 	fmt.Println("\nTables in assortiment:")
 	fmt.Println(d.GetTableNames("Assortiment"))
-	fmt.Println("\nColumns in Assortiment.Plant:")
-	fmt.Println(d.GetColumns("Assortiment", "Plant"))
+	fmt.Println("\nColumns in Verkoop.Orderregels:")
+	fmt.Println(d.GetColumns("Verkoop", "Orderregels"))
 	// c, _ := d.GetColumns("Assortiment", "Plant")
 	// printdbcols(c)
 	fmt.Println("\nRelationships for Assortiment.Artikel:")

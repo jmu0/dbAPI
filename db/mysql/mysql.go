@@ -152,17 +152,16 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	cols := []db.Column{}
 	var col db.Column
-	var field, tp, null, key, def, extra string
+	var field, tp, null, key, def, extra interface{}
 	query := "show columns from " + schemaName + "." + tableName
-	//TODO: waarom zie ik geen auto_increment in kolom Extra?? omdat string niet <nil> kan zijn. verander def in interface
 	rows, err := c.conn.Query(query)
 	defer rows.Close()
 	if err == nil && rows != nil {
 		for rows.Next() {
 			rows.Scan(&field, &tp, &null, &key, &def, &extra)
 			col = db.Column{
-				Name:         field,
-				DefaultValue: def,
+				Name:         db.Interface2string(field, false),
+				DefaultValue: db.Interface2string(def, false),
 			}
 			if key == "PRI" {
 				col.PrimaryKey = true
@@ -174,9 +173,12 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			} else {
 				col.Nullable = false
 			}
-			col.Type, col.Length = mapDataType(tp)
-
-			// log.Println("DEBUG col:", col)
+			if db.Interface2string(extra, false) == "auto_increment" {
+				col.AutoIncrement = true
+			} else {
+				col.AutoIncrement = false
+			}
+			col.Type, col.Length = mapDataType(db.Interface2string(tp, false))
 			cols = append(cols, col)
 		}
 	}

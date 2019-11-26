@@ -15,13 +15,14 @@ type Conn interface {
 
 //Column holds column data
 type Column struct {
-	Name         string
-	Type         string
-	Length       int
-	Nullable     bool
-	PrimaryKey   bool
-	DefaultValue string
-	Value        interface{}
+	Name          string
+	Type          string
+	Length        int
+	Nullable      bool
+	PrimaryKey    bool
+	AutoIncrement bool
+	DefaultValue  string
+	Value         interface{}
 }
 
 //Relationship between tables

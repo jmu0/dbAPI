@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -204,6 +205,13 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 				col.Nullable = true
 			} else {
 				col.Nullable = false
+			}
+			log.Println("DEBUG def", def)
+			//TODO: autoinc not working
+			if strings.Contains(def.(string), "nextval") {
+				col.AutoIncrement = true
+			} else {
+				col.AutoIncrement = false
 			}
 			col.Type = mapDataType(tp)
 			cols = append(cols, col)

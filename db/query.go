@@ -126,7 +126,7 @@ func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
 				if len(strValues) > 1 {
 					strValues += ", "
 				}
-				strValues += interface2string(c.Value)
+				strValues += Interface2string(c.Value, true)
 			}
 		}
 	}
@@ -149,7 +149,7 @@ func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
 				if len(fields) > 0 {
 					fields += ", "
 				}
-				fields += c.Name + "=" + interface2string(c.Value)
+				fields += c.Name + "=" + Interface2string(c.Value, true)
 			}
 		}
 	}
@@ -187,7 +187,7 @@ func primaryKeyWhereSQL(cols []Column) (string, error) {
 			if len(ret) > 0 {
 				ret += " and"
 			}
-			ret += " " + c.Name + " = " + interface2string(c.Value)
+			ret += " " + c.Name + " = " + Interface2string(c.Value, true)
 		}
 	}
 	if len(ret) == 0 {

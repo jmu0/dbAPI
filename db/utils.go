@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -30,20 +30,35 @@ func Escape(str string) string {
 	return str
 }
 
-//returns escaped string for interface{}
-func interface2string(val interface{}) string {
+//Interface2string returns escaped string for interface{}
+func Interface2string(val interface{}, quote bool) string {
 	var value string
 	if val == nil {
 		return ""
 	}
 	switch t := val.(type) {
 	case string:
-		value += "'" + Escape(val.(string)) + "'"
+		if quote {
+			value += "'" + Escape(val.(string)) + "'"
+
+		} else {
+			value += Escape(val.(string))
+		}
 	case int, int32, int64:
 		value += strconv.Itoa(val.(int))
+	case []uint8:
+		if quote {
+			value += "'" + string([]byte(val.([]uint8))) + "'"
+		} else {
+			value += string([]byte(val.([]uint8)))
+		}
 	default:
-		fmt.Println(t)
-		value += "'" + Escape(val.(string)) + "'"
+		log.Println("WARNING: type not handled:", t, "using string")
+		if quote {
+			value += "'" + Escape(val.(string)) + "'"
+		} else {
+			value += Escape(val.(string))
+		}
 	}
 	return value
 }
