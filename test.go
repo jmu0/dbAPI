@@ -34,16 +34,19 @@ func testPostgres() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("\nSchema names in database:")
-	fmt.Println(pg.GetSchemaNames())
-	fmt.Println("\nTables in public:")
-	fmt.Println(pg.GetTableNames("public"))
+	// fmt.Println("\nSchema names in database:")
+	// fmt.Println(pg.GetSchemaNames())
+	// fmt.Println("\nTables in public:")
+	// fmt.Println(pg.GetTableNames("public"))
 	fmt.Println("\nGet columns for tbl1:")
-	fmt.Println(pg.GetColumns("public", "tbl1"))
+	cols, err := pg.GetColumns("public", "tbl1")
+	for _, c := range cols {
+		fmt.Println(c)
+	}
 	// c, err := pg.GetColumns("assortiment", "plant")
 	// printdbcols(c)
-	fmt.Println("\nRelationships for assortiment.artikel:")
-	fmt.Println(pg.GetRelationships("assortiment", "artikel"))
+	// fmt.Println("\nRelationships for assortiment.artikel:")
+	// fmt.Println(pg.GetRelationships("assortiment", "artikel"))
 }
 func testMysql() {
 	var d = mysql.Conn{}

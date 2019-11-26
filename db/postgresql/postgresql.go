@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -169,8 +168,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	where c.table_schema='%s' and c.table_name='%s'`, schemaName, tableName)
 	cols := []db.Column{}
 	var col db.Column
-	var name, tp, ln, null string
-	var def, key interface{}
+	var name, tp, ln, null, def, key interface{}
 	var l int
 	var err error
 	rows, err := c.conn.Query(query)
@@ -184,7 +182,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			def = nil
 			key = nil
 			rows.Scan(&name, &tp, &ln, &null, &def, &key)
-			l, err = strconv.Atoi(ln)
+			l, err = strconv.Atoi(db.Interface2string(ln, false))
 			if err != nil {
 				l = 0
 			}
@@ -192,8 +190,8 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 				def = ""
 			}
 			col = db.Column{
-				Name:         name,
-				DefaultValue: def.(string),
+				Name:         db.Interface2string(name, false),
+				DefaultValue: db.Interface2string(def, false),
 				Length:       l,
 			}
 			if key == "PRIMARY KEY" {
@@ -206,14 +204,12 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			} else {
 				col.Nullable = false
 			}
-			log.Println("DEBUG def", def)
-			//TODO: autoinc not working
 			if strings.Contains(def.(string), "nextval") {
 				col.AutoIncrement = true
 			} else {
 				col.AutoIncrement = false
 			}
-			col.Type = mapDataType(tp)
+			col.Type = mapDataType(db.Interface2string(tp, false))
 			cols = append(cols, col)
 		}
 	}

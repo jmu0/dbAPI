@@ -44,8 +44,12 @@ func Interface2string(val interface{}, quote bool) string {
 		} else {
 			value += Escape(val.(string))
 		}
-	case int, int32, int64:
+	case int:
 		value += strconv.Itoa(val.(int))
+	case int32:
+		value += strconv.FormatInt(int64(val.(int32)), 10)
+	case int64:
+		value += strconv.FormatInt(val.(int64), 10)
 	case []uint8:
 		if quote {
 			value += "'" + string([]byte(val.([]uint8))) + "'"
