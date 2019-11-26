@@ -17,8 +17,8 @@ var listenAddr = ":8282"
 func main() {
 	// testMysql()
 	// testPostgres()
-	runAPIServer()
-	// testGraphql()
+	// runAPIServer()
+	testGraphql()
 }
 
 func testPostgres() {
@@ -78,19 +78,19 @@ func testGraphql() {
 	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Test!"))
 	})
-	// var d = postgresql.Conn{}
-	// err := d.Connect(map[string]string{
-	// 	"hostname": "jos-desktop",
-	// 	"username": "jos",
-	// 	"password": "jmu0!",
-	// 	"database": "test",
-	// })
-	var d = mysql.Conn{}
+	var d = postgresql.Conn{}
 	err := d.Connect(map[string]string{
 		"hostname": "jos-desktop",
-		"username": "web",
+		"username": "jos",
 		"password": "jmu0!",
+		"database": "test",
 	})
+	// var d = mysql.Conn{}
+	// err := d.Connect(map[string]string{
+	// 	"hostname": "jos-desktop",
+	// 	"username": "web",
+	// 	"password": "jmu0!",
+	// })
 	if err != nil {
 		fmt.Println(err)
 		return

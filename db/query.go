@@ -118,7 +118,7 @@ func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
 	strValues := "("
 	for _, c := range cols {
 		if c.Value != nil {
-			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
+			if c.AutoIncrement == false {
 				if len(fields) > 1 {
 					fields += ", "
 				}
@@ -145,7 +145,7 @@ func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
 	fields := ""
 	for _, c := range cols {
 		if c.Value != nil {
-			if (c.Type == "int" && c.Value == "") == false { //TODO: put auto inc in db.Column
+			if c.AutoIncrement == false {
 				if len(fields) > 0 {
 					fields += ", "
 				}
