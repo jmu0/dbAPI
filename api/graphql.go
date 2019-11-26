@@ -35,17 +35,18 @@ var cacheExpire = time.Second * 30
 type BuildSchemaArgs struct {
 	//Tables list of schema.table for schema
 	Tables []string
+	Conn   db.Conn
 }
 
 //BuildSchema builds a schema from database
-func BuildSchema(args BuildSchemaArgs, c db.Conn) (graphql.Schema, error) {
+func BuildSchema(args BuildSchemaArgs) (graphql.Schema, error) {
 	if len(args.Tables) == 0 { //get all db/table
-		dbs, err := c.GetSchemaNames()
+		dbs, err := args.Conn.GetSchemaNames()
 		if err != nil {
 			return graphql.Schema{}, err
 		}
 		for _, db := range dbs {
-			tbls, err := c.GetTableNames(db)
+			tbls, err := args.Conn.GetTableNames(db)
 			if err != nil {
 				return graphql.Schema{}, err
 			}
@@ -65,15 +66,15 @@ func BuildSchema(args BuildSchemaArgs, c db.Conn) (graphql.Schema, error) {
 		table := dbTable{
 			Name: tbl,
 		}
-		table.GetColumns(c)
-		table.GetRelationships(c)
+		table.GetColumns(args.Conn)
+		table.GetRelationships(args.Conn)
 		table.BuildType()
 		dbm.tables[table.Name] = table
 	}
 	for _, table := range dbm.tables {
-		table.BuildRelationships(c)
-		table.BuildQuery(c)
-		table.BuildMutations(c)
+		table.BuildRelationships(args.Conn)
+		table.BuildQuery(args.Conn)
+		table.BuildMutations(args.Conn)
 	}
 
 	return getSchema()

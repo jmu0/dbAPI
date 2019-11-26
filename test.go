@@ -98,7 +98,8 @@ func testGraphql() {
 
 	schema, err := api.BuildSchema(api.BuildSchemaArgs{
 		Tables: []string{},
-	}, &d)
+		Conn:   &d,
+	})
 
 	if err != nil {
 		fmt.Println("Schema error:", err)
