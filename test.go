@@ -19,6 +19,7 @@ func main() {
 	// testPostgres()
 	// runAPIServer()
 	testGraphql()
+	// testGetSQL()
 }
 
 func testPostgres() {
@@ -78,19 +79,19 @@ func testGraphql() {
 	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Test!"))
 	})
-	var d = postgresql.Conn{}
-	err := d.Connect(map[string]string{
-		"hostname": "jos-desktop",
-		"username": "jos",
-		"password": "jmu0!",
-		"database": "test",
-	})
-	// var d = mysql.Conn{}
+	// var d = postgresql.Conn{}
 	// err := d.Connect(map[string]string{
 	// 	"hostname": "jos-desktop",
-	// 	"username": "web",
+	// 	"username": "jos",
 	// 	"password": "jmu0!",
+	// 	"database": "test",
 	// })
+	var d = mysql.Conn{}
+	err := d.Connect(map[string]string{
+		"hostname": "jos-desktop",
+		"username": "web",
+		"password": "jmu0!",
+	})
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -145,4 +146,33 @@ func runAPIServer() {
 
 	log.Println("Listening on port", port)
 	log.Fatal(http.ListenAndServe(port, mx))
+}
+
+func testGetSQL() {
+	c := mysql.Conn{}
+	err := c.Connect(map[string]string{
+		"hostname": "jos-desktop",
+		"username": "web",
+		"password": "jmu0!",
+	})
+	// c := postgresql.Conn{}
+	// err := c.Connect(map[string]string{
+	// 	"hostname": "localhost",
+	// 	"username": "jos",
+	// 	"password": "jmu0!",
+	// 	"database": "test",
+	// })
+	if err != nil {
+		log.Fatal(err)
+	}
+	tbl, err := db.GetTable("Assortiment", "Artikel", &c)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// sql, err := c.GetSQL(&tbl, "create_table")
+	sql, err := c.GetSQL(&tbl, "create_table")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(sql)
 }

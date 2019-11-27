@@ -215,9 +215,11 @@ func mapDataType(dbType string) (string, int) {
 		"datetime": "string",
 		"int":      "int",
 		"double":   "float",
+		"decimal":  "float",
 	}
 	if t, ok := dataTypes[tp]; ok {
 		return t, ln
 	}
-	return "unknown", ln
+
+	return "unknown:" + tp, ln
 }

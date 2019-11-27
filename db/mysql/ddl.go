@@ -1,0 +1,87 @@
+package mysql
+
+import (
+	"errors"
+	"strconv"
+	"strings"
+
+	"github.com/jmu0/dbAPI/db"
+)
+
+// CreateTableSQL get create table SQL
+func CreateTableSQL(tbl *db.Table) (string, error) {
+	var query string
+	var primaryKey string
+	query = "create table " + tbl.Schema + "." + tbl.Name + " ("
+	for i, c := range tbl.Columns {
+		csql, err := columnSQL(&c)
+		if err != nil {
+			return "", err
+		}
+		if i > 0 {
+			query += ","
+		}
+		query += "\n\t" + csql
+		if c.PrimaryKey == true {
+			if len(primaryKey) > 0 {
+				primaryKey += ","
+			}
+			primaryKey += c.Name
+		}
+	}
+	if len(primaryKey) > 0 {
+		query += ",\n\tprimary key (" + primaryKey + ")"
+	}
+	for _, r := range tbl.Relationships {
+		if r.Cardinality == "many-to-one" {
+			query += ",\n\tconstraint " + strings.Replace(r.FromTable, ".", "_", -1) + "_" + strings.Replace(r.FromCols, ".", "_", -1) + "_fkey"
+			query += " foreign key (" + r.FromCols + ") references " + r.ToTable + " (" + r.ToCols + ")"
+		}
+	}
+	query += "\n);"
+	return query, nil
+}
+
+//DropTableSQL get drop table SQL
+func DropTableSQL(tbl *db.Table) (string, error) {
+	return "drop table if exists " + tbl.Schema + "." + tbl.Name + ";", nil
+}
+
+//CreateSchemaSQL get create schema sql
+func CreateSchemaSQL(schemaName string) (string, error) {
+	return "create database if not exists " + schemaName + ";", nil
+}
+
+//DropSchemaSQL get drop schema sql
+func DropSchemaSQL(schemaName string) (string, error) {
+	return "drop database if exists " + schemaName + ";", nil
+}
+
+func columnSQL(c *db.Column) (string, error) {
+	var ret = c.Name
+	if c.AutoIncrement == false {
+		switch c.Type {
+		case "string":
+			ret += " varchar(" + strconv.Itoa(c.Length) + ")"
+		case "int":
+			ret += " int"
+		case "float":
+			ret += " numeric"
+		case "bool":
+			ret += " boolean"
+		default:
+			return "", errors.New("invalid type " + c.Type)
+		}
+	} else {
+		ret += " serial"
+	}
+
+	if c.Nullable == false {
+		ret += " not null"
+	}
+
+	if len(c.DefaultValue) > 0 {
+		ret += " default '" + c.DefaultValue + "'"
+	}
+	return ret, nil
+}
