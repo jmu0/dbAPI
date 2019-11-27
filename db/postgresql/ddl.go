@@ -8,8 +8,18 @@ import (
 	"github.com/jmu0/dbAPI/db"
 )
 
+//PreSQL sql to put at start of query
+func (c *Conn) PreSQL() string {
+	return ""
+}
+
+//PostSQL sql to put at end of query
+func (c *Conn) PostSQL() string {
+	return ""
+}
+
 // CreateTableSQL get create table SQL
-func CreateTableSQL(tbl *db.Table) (string, error) {
+func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 	var query string
 	var primaryKey string
 
@@ -33,29 +43,27 @@ func CreateTableSQL(tbl *db.Table) (string, error) {
 	if len(primaryKey) > 0 {
 		query += ",\n\tprimary key (" + primaryKey + ")"
 	}
-	for _, r := range tbl.Relationships {
-		if r.Cardinality == "many-to-one" {
-			query += ",\n\tconstraint " + strings.Replace(r.FromTable, ".", "_", -1) + "_" + strings.Replace(r.FromCols, ".", "_", -1) + "_fkey"
-			query += " foreign key (" + r.FromCols + ") references " + r.ToTable + " (" + r.ToCols + ")"
-		}
+	for _, r := range tbl.ForeignKeys {
+		query += ",\n\tconstraint " + strings.Replace(tbl.Name, ".", "_", -1) + "_" + strings.Replace(strings.Replace(r.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
+		query += " foreign key (" + r.FromCols + ") references " + r.ToTable + " (" + r.ToCols + ")"
 	}
 	query += "\n);"
 	return query, nil
 }
 
 //DropTableSQL get drop table SQL
-func DropTableSQL(tbl *db.Table) (string, error) {
+func (c *Conn) DropTableSQL(tbl *db.Table) (string, error) {
 	return "drop table if exists " + tbl.Schema + "." + tbl.Name + ";", nil
 }
 
 //CreateSchemaSQL get create schema sql
-func CreateSchemaSQL(schemaName string) (string, error) {
+func (c *Conn) CreateSchemaSQL(schemaName string) (string, error) {
 	return "create schema if not exists " + schemaName + ";", nil
 }
 
 //DropSchemaSQL get drop schema sql
-func DropSchemaSQL(schemaName string) (string, error) {
-	return "drop schema if exists " + schemaName + ";", nil
+func (c *Conn) DropSchemaSQL(schemaName string) (string, error) {
+	return "drop schema if exists " + schemaName + " cascade;", nil
 }
 
 func columnSQL(c *db.Column) (string, error) {
@@ -70,6 +78,8 @@ func columnSQL(c *db.Column) (string, error) {
 			ret += " numeric"
 		case "bool":
 			ret += " boolean"
+		case "dbdate":
+			ret += " date"
 		default:
 			return "", errors.New("invalid type" + c.Type)
 		}

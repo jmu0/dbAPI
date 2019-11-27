@@ -194,6 +194,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			if err != nil {
 				l = 0
 			}
+
 			if def == nil {
 				def = ""
 			}
@@ -218,14 +219,21 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 				col.AutoIncrement = false
 			}
 			col.Type = mapDataType(db.Interface2string(tp, false))
+			if col.Type == "dbdate" {
+				col.Length = 10
+			}
 			cols = append(cols, col)
 		}
+	}
+	if len(cols) == 0 {
+		return cols, errors.New("No columns found")
 	}
 	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil
 }
 
 func mapDataType(dbType string) string {
+	//TODO: date datatype
 	dataTypes := map[string]string{
 		"smallint":          "int",
 		"integer":           "int",
@@ -244,7 +252,7 @@ func mapDataType(dbType string) string {
 		"char":              "string",
 		"text":              "string",
 		"timestamp":         "string",
-		"date":              "string",
+		"date":              "dbdate",
 		"time":              "string",
 		"boolean":           "bool",
 	}

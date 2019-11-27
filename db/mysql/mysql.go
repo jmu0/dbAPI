@@ -190,11 +190,15 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			cols = append(cols, col)
 		}
 	}
+	if len(cols) == 0 {
+		return cols, errors.New("No columns found")
+	}
 	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil
 }
 
 func mapDataType(dbType string) (string, int) {
+	//TODO: date data type
 	var spl = strings.Split(dbType, "(")
 	var tp string
 	var ln int
@@ -212,12 +216,15 @@ func mapDataType(dbType string) (string, int) {
 		"varchar":  "string",
 		"tinyint":  "int",
 		"smallint": "int",
-		"datetime": "string",
+		"datetime": "dbdate",
 		"int":      "int",
 		"double":   "float",
 		"decimal":  "float",
 	}
 	if t, ok := dataTypes[tp]; ok {
+		if t == "dbdate" {
+			ln = 10
+		}
 		return t, ln
 	}
 

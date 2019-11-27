@@ -127,6 +127,8 @@ func Interface2string(val interface{}, quote bool) string {
 //GetTable reads table struct from database
 func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
 	var err error
+	var rels []Relationship
+	var fk ForeignKey
 	var tbl = Table{
 		Name:   tableName,
 		Schema: schemaName,
@@ -135,9 +137,42 @@ func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
 	if err != nil {
 		return Table{}, err
 	}
-	tbl.Relationships, err = conn.GetRelationships(schemaName, tableName)
+	rels, err = conn.GetRelationships(schemaName, tableName)
+	for _, r := range rels {
+		if r.Cardinality == "many-to-one" {
+			fk = ForeignKey{
+				FromCols: r.FromCols,
+				ToTable:  r.ToTable,
+				ToCols:   r.ToCols,
+			}
+			tbl.ForeignKeys = append(tbl.ForeignKeys, fk)
+		}
+	}
 	if err != nil {
 		return Table{}, err
 	}
 	return tbl, nil
+}
+
+//GetSchema reads schema from database
+func GetSchema(schemaName string, conn Conn) (Schema, error) {
+	var tbls []string
+	var err error
+	var tbl Table
+
+	var s = Schema{
+		Name: schemaName,
+	}
+	tbls, err = conn.GetTableNames(schemaName)
+	if err != nil {
+		return Schema{}, err
+	}
+	for _, t := range tbls {
+		tbl, err = GetTable(schemaName, t, conn)
+		if err != nil {
+			return Schema{}, err
+		}
+		s.Tables = append(s.Tables, tbl)
+	}
+	return s, nil
 }
