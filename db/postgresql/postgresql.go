@@ -98,7 +98,7 @@ func skipDb(name string) bool {
 //GetTableNames from database
 func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	tbls := []string{}
-	query := "select table_name from information_schema.tables where table_schema='" + strings.ToLower(schemaName) + "'"
+	query := "select table_name from information_schema.tables where table_schema='" + schemaName + "'"
 	rows, err := c.conn.Query(query)
 	if err != nil {
 		return nil, err
@@ -180,6 +180,9 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	var l int
 	var err error
 	rows, err := c.conn.Query(query)
+	if err != nil {
+		return cols, err
+	}
 	defer rows.Close()
 	if err == nil && rows != nil {
 		for rows.Next() {
@@ -226,7 +229,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 		}
 	}
 	if len(cols) == 0 {
-		return cols, errors.New("No columns found")
+		return cols, errors.New("No columns found for " + schemaName + "." + tableName)
 	}
 	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil

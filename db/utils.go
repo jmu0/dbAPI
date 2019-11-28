@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -124,55 +125,68 @@ func Interface2string(val interface{}, quote bool) string {
 	return value
 }
 
-//GetTable reads table struct from database
-func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
-	var err error
-	var rels []Relationship
-	var fk ForeignKey
-	var tbl = Table{
-		Name:   tableName,
-		Schema: schemaName,
-	}
-	tbl.Columns, err = conn.GetColumns(schemaName, tableName)
+//HasSchema checks if schema exists in database
+func HasSchema(schemaName string, c Conn) bool {
+	lst, err := c.GetSchemaNames()
 	if err != nil {
-		return Table{}, err
+		return false
 	}
-	rels, err = conn.GetRelationships(schemaName, tableName)
-	for _, r := range rels {
-		if r.Cardinality == "many-to-one" {
-			fk = ForeignKey{
-				FromCols: r.FromCols,
-				ToTable:  r.ToTable,
-				ToCols:   r.ToCols,
-			}
-			tbl.ForeignKeys = append(tbl.ForeignKeys, fk)
+	for _, item := range lst {
+		if item == schemaName {
+			return true
 		}
 	}
-	if err != nil {
-		return Table{}, err
-	}
-	return tbl, nil
+	return false
 }
 
-//GetSchema reads schema from database
-func GetSchema(schemaName string, conn Conn) (Schema, error) {
-	var tbls []string
-	var err error
-	var tbl Table
-
-	var s = Schema{
-		Name: schemaName,
-	}
-	tbls, err = conn.GetTableNames(schemaName)
+//HasTable checks if table exists in schema
+func HasTable(schemaName, tableName string, c Conn) bool {
+	schema, err := GetSchema(schemaName, c)
 	if err != nil {
-		return Schema{}, err
+		return false
 	}
-	for _, t := range tbls {
-		tbl, err = GetTable(schemaName, t, conn)
-		if err != nil {
-			return Schema{}, err
+	for _, tbl := range schema.Tables {
+		if tbl.Name == tableName {
+			return true
 		}
-		s.Tables = append(s.Tables, tbl)
 	}
-	return s, nil
+	return false
+}
+
+//DoubleQuote puts quotes around string, (schema.table) and (col, col)
+func DoubleQuote(str string) string {
+	var res, sep string
+	var spl []string
+	if strings.Contains(str, ",") {
+		sep = ", "
+		spl = strings.Split(str, ",")
+	} else if strings.Contains(str, ".") {
+		sep = "."
+		spl = strings.Split(str, ".")
+	} else {
+		return "\"" + str + "\""
+	}
+	for _, item := range spl {
+		if len(res) > 0 {
+			res += sep
+		}
+		res += "\"" + strings.TrimSpace(item) + "\""
+	}
+	return res
+}
+
+// SortTablesByForeignKey sorts tables for building creat table SQL
+func SortTablesByForeignKey(tbls []Table) {
+	sort.SliceStable(tbls, func(i, j int) bool {
+		var spl []string
+		for _, fk := range tbls[i].ForeignKeys {
+			spl = strings.Split(fk.ToTable, ".")
+			if len(spl) == 2 {
+				if spl[0] == tbls[j].Schema && spl[1] == tbls[j].Name {
+					return false
+				}
+			}
+		}
+		return true
+	})
 }

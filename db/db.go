@@ -12,12 +12,6 @@ type Conn interface {
 	GetTableNames(schemaName string) ([]string, error)
 	GetRelationships(schemaName string, tableName string) ([]Relationship, error)
 	GetColumns(schemaName, tableName string) ([]Column, error)
-}
-
-//Ddl interface (data definition stuff)
-type Ddl interface {
-	Connect(args map[string]string) error
-	GetConnection() *sql.DB
 	PreSQL() string  //sql to put at start of ddl query
 	PostSQL() string //sql to put at end of ddl query
 	CreateTableSQL(tbl *Table) (string, error)

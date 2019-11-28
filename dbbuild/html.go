@@ -1,10 +1,61 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
 )
+
+var database, table string
+var tables, dbs []string
+
+func handleHTML() {
+	var html = cols2form(getCols(connect()))
+	fmt.Println(html)
+}
+
+func handleTemplate() {
+	var html = cols2template(getCols(connect()))
+	fmt.Println(html)
+}
+
+func getCols(c db.Conn) []db.Column {
+	var err error
+	var ret []db.Column
+	if _, ok := s["schema"]; !ok {
+		for _, db := range dbs {
+			fmt.Println(db)
+		}
+		dbs, err = c.GetSchemaNames()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print("\nSchema: ")
+		fmt.Scanln(&database)
+	} else {
+		database = s["schema"]
+	}
+	if _, ok := s["table"]; !ok {
+		tables, err = c.GetTableNames(database)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, tbl := range tables {
+			fmt.Println(tbl)
+		}
+		fmt.Print("Table: ")
+		fmt.Scanln(&table)
+	} else {
+		table = s["table"]
+	}
+	ret, err = c.GetColumns(database, table)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return ret
+}
 
 func cols2form(cols []db.Column) string {
 	var html, val string

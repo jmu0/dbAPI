@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -163,10 +164,14 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	var field, tp, null, key, def, extra interface{}
 	query := "show columns from " + schemaName + "." + tableName
 	rows, err := c.conn.Query(query)
+	if err != nil {
+		return cols, err
+	}
 	defer rows.Close()
 	if err == nil && rows != nil {
 		for rows.Next() {
 			rows.Scan(&field, &tp, &null, &key, &def, &extra)
+			// log.Println("DEBUG: field:", db.Interface2string(field, false), "tp:", tp, "null:", db.Interface2string(null, false), "key:", key, "def:", def, "extra:", extra)
 			col = db.Column{
 				Name:         db.Interface2string(field, false),
 				DefaultValue: db.Interface2string(def, false),
@@ -176,7 +181,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			} else {
 				col.PrimaryKey = false
 			}
-			if null == "YES" {
+			if db.Interface2string(null, false) == "YES" {
 				col.Nullable = true
 			} else {
 				col.Nullable = false
@@ -190,9 +195,9 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			cols = append(cols, col)
 		}
 	}
-	if len(cols) == 0 {
-		return cols, errors.New("No columns found")
-	}
+	// if len(cols) == 0 {
+	// 	return nil, errors.New("No columns found")
+	// }
 	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil
 }
@@ -213,20 +218,27 @@ func mapDataType(dbType string) (string, int) {
 		tp = dbType
 	}
 	dataTypes := map[string]string{
-		"varchar":  "string",
-		"tinyint":  "int",
-		"smallint": "int",
-		"datetime": "dbdate",
-		"int":      "int",
-		"double":   "float",
-		"decimal":  "float",
+		"varchar":   "string",
+		"tinyint":   "int",
+		"smallint":  "int",
+		"bigint":    "int",
+		"text":      "string",
+		"datetime":  "dbdate",
+		"timestamp": "dbdate",
+		"int":       "int",
+		"double":    "float",
+		"decimal":   "float",
+		"float":     "float",
 	}
 	if t, ok := dataTypes[tp]; ok {
 		if t == "dbdate" {
 			ln = 10
 		}
+		if tp == "text" {
+			ln = 10000
+		}
 		return t, ln
 	}
-
+	log.Println("WARNING: unmapped datatype: ", tp)
 	return "unknown:" + tp, ln
 }

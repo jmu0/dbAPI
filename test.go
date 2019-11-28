@@ -56,32 +56,7 @@ func connectTestMysql() (db.Conn, error) {
 	}
 	return &d, nil
 }
-func connectTestMysqlDDL() (db.Ddl, error) {
-	var d = mysql.Conn{}
-	err := d.Connect(map[string]string{
-		"hostname": "jos-desktop",
-		"username": "web",
-		"password": "jmu0!",
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &d, nil
-}
 func connectTestPostgres() (db.Conn, error) {
-	var d = postgresql.Conn{}
-	err := d.Connect(map[string]string{
-		"hostname": "jos-desktop",
-		"username": "jos",
-		"password": "jmu0!",
-		"database": "test",
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &d, nil
-}
-func connectTestPostgresDDL() (db.Ddl, error) {
 	var d = postgresql.Conn{}
 	err := d.Connect(map[string]string{
 		"hostname": "jos-desktop",
@@ -177,8 +152,8 @@ func testCreateTableSQL() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	d, err := connectTestPostgresDDL()
-	// d, err := connectTestMysqlDDL()
+	d, err := connectTestPostgres()
+	// d, err := connectTestMysql()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -221,8 +196,8 @@ func testYml2Db() {
 		log.Fatal(err)
 	}
 	// fmt.Println(s)
-	d, err := connectTestPostgresDDL()
-	// d, err := connectTestMysqlDDL()
+	d, err := connectTestPostgres()
+	// d, err := connectTestMysql()
 	if err != nil {
 		log.Fatal(err)
 	}

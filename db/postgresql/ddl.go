@@ -22,8 +22,7 @@ func (c *Conn) PostSQL() string {
 func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 	var query string
 	var primaryKey string
-
-	query = "create table " + tbl.Schema + "." + tbl.Name + " ("
+	query = "create table " + db.DoubleQuote(tbl.Schema+"."+tbl.Name) + " ("
 	for i, c := range tbl.Columns {
 		csql, err := columnSQL(&c)
 		if err != nil {
@@ -37,7 +36,7 @@ func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 			if len(primaryKey) > 0 {
 				primaryKey += ","
 			}
-			primaryKey += c.Name
+			primaryKey += db.DoubleQuote(c.Name)
 		}
 	}
 	if len(primaryKey) > 0 {
@@ -45,7 +44,7 @@ func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 	}
 	for _, r := range tbl.ForeignKeys {
 		query += ",\n\tconstraint " + strings.Replace(tbl.Name, ".", "_", -1) + "_" + strings.Replace(strings.Replace(r.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
-		query += " foreign key (" + r.FromCols + ") references " + r.ToTable + " (" + r.ToCols + ")"
+		query += " foreign key (" + db.DoubleQuote(r.FromCols) + ") references " + db.DoubleQuote(r.ToTable) + " (" + db.DoubleQuote(r.ToCols) + ") deferrable"
 	}
 	query += "\n);"
 	return query, nil
@@ -53,21 +52,21 @@ func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 
 //DropTableSQL get drop table SQL
 func (c *Conn) DropTableSQL(tbl *db.Table) (string, error) {
-	return "drop table if exists " + tbl.Schema + "." + tbl.Name + ";", nil
+	return "drop table if exists \"" + tbl.Schema + "\".\"" + tbl.Name + "\";", nil
 }
 
 //CreateSchemaSQL get create schema sql
 func (c *Conn) CreateSchemaSQL(schemaName string) (string, error) {
-	return "create schema if not exists " + schemaName + ";", nil
+	return "create schema if not exists \"" + schemaName + "\";", nil
 }
 
 //DropSchemaSQL get drop schema sql
 func (c *Conn) DropSchemaSQL(schemaName string) (string, error) {
-	return "drop schema if exists " + schemaName + " cascade;", nil
+	return "drop schema if exists \"" + schemaName + "\" cascade;", nil
 }
 
 func columnSQL(c *db.Column) (string, error) {
-	var ret = c.Name
+	var ret = "\"" + c.Name + "\""
 	if c.AutoIncrement == false {
 		switch c.Type {
 		case "string":
@@ -80,17 +79,18 @@ func columnSQL(c *db.Column) (string, error) {
 			ret += " boolean"
 		case "dbdate":
 			ret += " date"
+			if strings.Contains(c.DefaultValue, "CURRENT_TIMESTAMP") {
+				c.DefaultValue = "NOW()"
+			}
 		default:
 			return "", errors.New("invalid type" + c.Type)
 		}
 	} else {
 		ret += " serial"
 	}
-
 	if c.Nullable == false {
 		ret += " not null"
 	}
-
 	if len(c.DefaultValue) > 0 {
 		ret += " default '" + c.DefaultValue + "'"
 	}
