@@ -17,6 +17,7 @@ func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
 	for _, r := range rels {
 		if r.Cardinality == "many-to-one" {
 			fk = ForeignKey{
+				Name:     r.Name,
 				FromCols: r.FromCols,
 				ToTable:  r.ToTable,
 				ToCols:   r.ToCols,
@@ -62,10 +63,7 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 	var sql, tmp string
 	var err error
 	if updateSchema && HasSchema(tbl.Schema, conn) == false {
-		tmp, err := conn.CreateSchemaSQL(tbl.Schema)
-		if err != nil {
-			return "", err
-		}
+		tmp := conn.CreateSchemaSQL(tbl.Schema)
 		if len(sql) > 0 {
 			sql += "\n"
 		}
@@ -92,10 +90,7 @@ func UpdateSchemaSQL(schema *Schema, conn Conn) (string, error) {
 	var sql, tmp string
 	var err error
 	if HasSchema(schema.Name, conn) == false {
-		tmp, err := conn.CreateSchemaSQL(schema.Name)
-		if err != nil {
-			return "", err
-		}
+		tmp := conn.CreateSchemaSQL(schema.Name)
 		if len(sql) > 0 {
 			sql += "\n"
 		}

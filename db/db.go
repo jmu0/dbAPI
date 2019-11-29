@@ -16,9 +16,14 @@ type Conn interface {
 	PreSQL() string  //sql to put at start of ddl query
 	PostSQL() string //sql to put at end of ddl query
 	CreateTableSQL(tbl *Table) (string, error)
-	DropTableSQL(tbl *Table) (string, error)
-	CreateSchemaSQL(schemaName string) (string, error)
-	DropSchemaSQL(schemaName string) (string, error)
+	DropTableSQL(tbl *Table) string
+	CreateSchemaSQL(schemaName string) string
+	DropSchemaSQL(schemaName string) string
+	CreateIndexSQL(schemaName, tableName string, index *Index) string
+	DropIndexSQL(schemaName, tableName, indexName string) string
+	AddColumnSQL(schemaName, tableName string, col *Column) (string, error)
+	DropColumnSQL(schemaName, tableName, columnName string) string
+	AlterColumnSQL(schemaName, tableName string, col *Column) (string, error)
 }
 
 //Column holds column data
@@ -35,6 +40,7 @@ type Column struct {
 
 //Relationship between tables
 type Relationship struct {
+	Name        string
 	FromTable   string
 	FromCols    string
 	ToTable     string
@@ -44,6 +50,7 @@ type Relationship struct {
 
 //ForeignKey only many-to-one relationships
 type ForeignKey struct {
+	Name     string `json:"name,omitempty" yaml:"name,omitempty"`
 	FromCols string `json:"fromcols" yaml:"fromcols"`
 	ToTable  string `json:"totable" yaml:"totable"`
 	ToCols   string `json:"tocols" yaml:"tocols"`

@@ -121,7 +121,7 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
 	var rel db.Relationship
-	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
+	var query = `select constraint_name as name, concat(table_schema, ".", table_name) as fromTbl, 
 			group_concat(column_name separator ", ") as fromCols,
 			concat(referenced_table_schema, ".", referenced_table_name) as toTbl, 
 			group_concat(referenced_column_name separator ", ") as toCols
@@ -130,14 +130,15 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 			where (referenced_table_schema="` + schemaName + `" and referenced_table_name="` + tableName + `") 
 			or (table_schema="` + schemaName + `" and table_name="` + tableName + `")
 			and constraint_name <> "PRIMARY"
-			) as relations group by fromTbl, toTbl`
-	// log.Println("DEBUG:", query)
+			) as relations group by constraint_name, fromTbl, toTbl`
+	// log.Fatal(query)
 	res, err := db.Query(c, query)
 	if err != nil {
 		return ret, err
 	}
 	for _, r := range res {
 		rel = db.Relationship{
+			Name:      r["name"].(string),
 			FromTable: r["fromTbl"].(string),
 			FromCols:  r["fromCols"].(string),
 			ToTable:   r["toTbl"].(string),

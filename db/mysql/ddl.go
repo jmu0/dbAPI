@@ -18,6 +18,16 @@ func (c *Conn) PostSQL() string {
 	return "set foreign_key_checks=1;"
 }
 
+//CreateSchemaSQL get create schema sql
+func (c *Conn) CreateSchemaSQL(schemaName string) string {
+	return "create database if not exists " + schemaName + ";"
+}
+
+//DropSchemaSQL get drop schema sql
+func (c *Conn) DropSchemaSQL(schemaName string) string {
+	return "drop database if exists " + schemaName + ";"
+}
+
 // CreateTableSQL get create table SQL
 func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 	var query string
@@ -47,22 +57,65 @@ func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 		query += " foreign key (" + r.FromCols + ") references " + r.ToTable + " (" + r.ToCols + ")"
 	}
 	query += "\n);"
+	for i, ind := range tbl.Indexes {
+		if i == 0 {
+			query += "\n"
+		}
+		query += c.CreateIndexSQL(tbl.Schema, tbl.Name, &ind)
+		if i < len(tbl.Indexes) {
+			query += "\n"
+		}
+	}
 	return query, nil
 }
 
 //DropTableSQL get drop table SQL
-func (c *Conn) DropTableSQL(tbl *db.Table) (string, error) {
-	return "drop table if exists " + tbl.Schema + "." + tbl.Name + ";", nil
+func (c *Conn) DropTableSQL(tbl *db.Table) string {
+	return "drop table if exists " + tbl.Schema + "." + tbl.Name + ";"
 }
 
-//CreateSchemaSQL get create schema sql
-func (c *Conn) CreateSchemaSQL(schemaName string) (string, error) {
-	return "create database if not exists " + schemaName + ";", nil
+//CreateIndexSQL get create index sql
+func (c *Conn) CreateIndexSQL(schemaName, tableName string, index *db.Index) string {
+	if len(index.Name) == 0 || index.Name == index.Columns {
+		index.Name = strings.Replace(index.Columns, ", ", "_", -1) + "_index"
+	}
+	query := "create index " + index.Name + " on " + schemaName + "." + tableName
+	query += " (" + index.Columns + ");"
+	return query
 }
 
-//DropSchemaSQL get drop schema sql
-func (c *Conn) DropSchemaSQL(schemaName string) (string, error) {
-	return "drop database if exists " + schemaName + ";", nil
+//DropIndexSQL drop index sql
+func (c *Conn) DropIndexSQL(schemaName, tableName, indexName string) string {
+	return "drop index " + indexName + " on " + schemaName + "." + tableName + ";"
+}
+
+//AddColumnSQL returns sql to add a column
+func (c *Conn) AddColumnSQL(schemaName, tableName string, col *db.Column) (string, error) {
+	query := "alter table " + schemaName + "." + tableName
+	tmp, err := columnSQL(col)
+	if err != nil {
+		return "", err
+	}
+	query += "\n\tadd " + tmp
+	return query, nil
+}
+
+//DropColumnSQL returns sql to drop a column
+func (c *Conn) DropColumnSQL(schemaName, tableName, columnName string) string {
+	query := "alter table " + schemaName + "." + tableName
+	query += "\n\tdrop column " + columnName + ";"
+	return query
+}
+
+//AlterColumnSQL returns sql to alter column
+func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (string, error) {
+	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName)
+	tmp, err := columnSQL(col)
+	if err != nil {
+		return "", err
+	}
+	query += "\n\tmodify " + tmp
+	return query, nil
 }
 
 func columnSQL(c *db.Column) (string, error) {

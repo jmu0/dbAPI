@@ -119,29 +119,32 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
 	var rel db.Relationship
-	query := fmt.Sprintf(`select fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols from (SELECT
-		concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
-		kcu.column_name as fromCol, 
-		concat(ccu.table_schema, '.', ccu.table_name) AS toTbl,
-		ccu.column_name AS toCol
-	FROM 
-		information_schema.table_constraints AS tc 
-		JOIN information_schema.key_column_usage AS kcu
-		  ON tc.constraint_name = kcu.constraint_name
-		  AND tc.table_schema = kcu.table_schema
-		JOIN information_schema.constraint_column_usage AS ccu
-		  ON ccu.constraint_name = tc.constraint_name
-		  AND ccu.table_schema = tc.table_schema
-	WHERE tc.constraint_type = 'FOREIGN KEY' 
-	AND ((tc.table_schema='%s' and tc.table_name='%s') 
+	query := fmt.Sprintf(`select name, fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols 
+	from (SELECT
+			tc.constraint_name as name,
+			concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
+			kcu.column_name as fromCol, 
+			concat(ccu.table_schema, '.', ccu.table_name) AS toTbl,
+			ccu.column_name AS toCol
+		FROM 
+			information_schema.table_constraints AS tc 
+			JOIN information_schema.key_column_usage AS kcu
+		  	ON tc.constraint_name = kcu.constraint_name
+		  	AND tc.table_schema = kcu.table_schema
+			JOIN information_schema.constraint_column_usage AS ccu
+		  	ON ccu.constraint_name = tc.constraint_name
+		  	AND ccu.table_schema = tc.table_schema
+		WHERE tc.constraint_type = 'FOREIGN KEY' 
+		AND ((tc.table_schema='%s' and tc.table_name='%s') 
 		or (ccu.table_schema='%s' and ccu.table_name='%s'))) as regels
-		group by fromTbl, toTbl`, schemaName, tableName, schemaName, tableName)
+		group by name, fromTbl, toTbl`, schemaName, tableName, schemaName, tableName)
 	res, err := db.Query(c, query)
 	if err != nil {
 		return ret, err
 	}
 	for _, r := range res {
 		rel = db.Relationship{
+			Name:      r["name"].(string),
 			FromTable: r["fromtbl"].(string),
 			FromCols:  r["fromcols"].(string),
 			ToTable:   r["totbl"].(string),
