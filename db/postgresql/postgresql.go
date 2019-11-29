@@ -118,6 +118,7 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 //GetRelationships from database table
 func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
+	var rel db.Relationship
 	query := fmt.Sprintf(`select fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols from (SELECT
 		concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
 		kcu.column_name as fromCol, 
@@ -136,12 +137,11 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 		or (ccu.table_schema='%s' and ccu.table_name='%s'))) as regels
 		group by fromTbl, toTbl`, schemaName, tableName, schemaName, tableName)
 	res, err := db.Query(c, query)
-	//TODO: check if this matters: on constraints with multiple columns the order of the columns can be different
 	if err != nil {
 		return ret, err
 	}
 	for _, r := range res {
-		var rel = db.Relationship{
+		rel = db.Relationship{
 			FromTable: r["fromtbl"].(string),
 			FromCols:  r["fromcols"].(string),
 			ToTable:   r["totbl"].(string),
@@ -153,6 +153,52 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 			rel.Cardinality = "one-to-many"
 		}
 		ret = append(ret, rel)
+	}
+	return ret, nil
+}
+
+//GetIndexes get indexes for table
+func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
+	var ret = []db.Index{}
+	var ind db.Index
+	query := fmt.Sprintf(`
+		select
+			i.relname as index,
+			array_to_string(array_agg(a.attname), ', ') as columns
+		from
+			pg_class t,
+			pg_class i,
+			pg_index ix,
+			pg_attribute a,
+			pg_indexes ind
+		where
+			t.oid = ix.indrelid
+			and i.oid = ix.indexrelid
+			and a.attrelid = t.oid
+			and a.attnum = ANY(ix.indkey)
+			and t.relkind = 'r'
+			and ind.indexname=i.relname
+			and ind.schemaname = '%s'
+			and t.relname = '%s'
+			and i.relname != concat(t.relname, '_pkey')
+		group by
+			t.relname,
+			i.relname,
+			ind.schemaname
+		order by
+			t.relname,
+			i.relname;
+	`, schemaName, tableName)
+	res, err := db.Query(c, query)
+	if err != nil {
+		return ret, err
+	}
+	for _, r := range res {
+		ind = db.Index{
+			Name:    r["index"].(string),
+			Columns: r["columns"].(string),
+		}
+		ret = append(ret, ind)
 	}
 	return ret, nil
 }

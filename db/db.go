@@ -12,6 +12,7 @@ type Conn interface {
 	GetTableNames(schemaName string) ([]string, error)
 	GetRelationships(schemaName string, tableName string) ([]Relationship, error)
 	GetColumns(schemaName, tableName string) ([]Column, error)
+	GetIndexes(schemaName, tableName string) ([]Index, error)
 	PreSQL() string  //sql to put at start of ddl query
 	PostSQL() string //sql to put at end of ddl query
 	CreateTableSQL(tbl *Table) (string, error)
@@ -41,11 +42,17 @@ type Relationship struct {
 	Cardinality string
 }
 
-//ForeignKey like only many-to-one relationships
+//ForeignKey only many-to-one relationships
 type ForeignKey struct {
 	FromCols string `json:"fromcols" yaml:"fromcols"`
 	ToTable  string `json:"totable" yaml:"totable"`
 	ToCols   string `json:"tocols" yaml:"tocols"`
+}
+
+//Index on table
+type Index struct {
+	Name    string `json:"name,omitempty" yaml:"name,omitempty"`
+	Columns string `json:"columns" yaml:"columns"`
 }
 
 //Table struct
@@ -54,6 +61,7 @@ type Table struct {
 	Schema      string       `json:"schema" yaml:"schema"`
 	Columns     []Column     `json:"columns" yaml:"columns"`
 	ForeignKeys []ForeignKey `json:"foreign_keys,omitempty" yaml:"foreign_keys,omitempty"`
+	Indexes     []Index      `json:"indexes,omitempty" yaml:"indexes,omitempty"`
 }
 
 //Schema struct

@@ -3,6 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -119,6 +120,7 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 //GetRelationships from database table
 func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
+	var rel db.Relationship
 	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
 			group_concat(column_name separator ", ") as fromCols,
 			concat(referenced_table_schema, ".", referenced_table_name) as toTbl, 
@@ -135,7 +137,7 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 		return ret, err
 	}
 	for _, r := range res {
-		var rel = db.Relationship{
+		rel = db.Relationship{
 			FromTable: r["fromTbl"].(string),
 			FromCols:  r["fromCols"].(string),
 			ToTable:   r["toTbl"].(string),
@@ -147,6 +149,38 @@ func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relat
 			rel.Cardinality = "one-to-many"
 		}
 		ret = append(ret, rel)
+	}
+	return ret, nil
+}
+
+//GetIndexes get indexes for table
+func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
+	var ret = []db.Index{}
+	var ind db.Index
+	query := fmt.Sprintf(`
+	select 
+		index_name as 'index',
+		group_concat(column_name separator ', ') as columns
+	from information_schema.statistics
+	group by 
+		table_schema,
+		table_name,
+		index_name
+	having
+		table_schema = '%s'
+		and table_name = '%s'
+		and index_name <> 'PRIMARY'
+	`, schemaName, tableName)
+	res, err := db.Query(c, query)
+	if err != nil {
+		return ret, err
+	}
+	for _, r := range res {
+		ind = db.Index{
+			Name:    r["index"].(string),
+			Columns: r["columns"].(string),
+		}
+		ret = append(ret, ind)
 	}
 	return ret, nil
 }

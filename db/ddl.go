@@ -27,6 +27,10 @@ func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
 	if err != nil {
 		return Table{}, err
 	}
+	tbl.Indexes, err = conn.GetIndexes(schemaName, tableName)
+	if err != nil {
+		return Table{}, err
+	}
 	return tbl, nil
 }
 

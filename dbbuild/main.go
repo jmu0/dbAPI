@@ -90,6 +90,9 @@ dbbuild template
 dbbuild yaml
   Reads table structure from database and builds yaml file
   env/clo: driver, hostname, database, username, password, schema, table
+dbbuild sql
+  Creates sql to create/modify database from yaml file
+  env/clo: driver, hostname, database, username, password, file
   `)
 }
 
