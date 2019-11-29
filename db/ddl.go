@@ -80,6 +80,7 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 		sql += tmp
 	} else {
 		return "-- TODO: check table columns&foreign keys: " + tbl.Schema + "." + tbl.Name, nil
+		//TODO compare table struct to database and create sql
 	}
 
 	return sql, nil
@@ -96,17 +97,7 @@ func UpdateSchemaSQL(schema *Schema, conn Conn) (string, error) {
 		}
 		sql += tmp
 	}
-	// var printTables = func(tbls []Table) {
-	// 	fmt.Println(">>>>>")
-	// 	for _, t := range tbls {
-	// 		fmt.Println(t.Name)
-	// 	}
-	// 	fmt.Println("<<<<<")
-	// }
-	// printTables(schema.Tables)
 	SortTablesByForeignKey(schema.Tables)
-	// printTables(schema.Tables)
-	// log.Fatal("\nsorted!")
 	for _, tbl := range schema.Tables {
 		tmp, err = UpdateTableSQL(&tbl, conn, false)
 		if err != nil {

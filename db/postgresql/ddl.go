@@ -164,10 +164,6 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 	return query, nil
 }
 
-//AddForeignKeySQL returns sql to add a foreign key
-
-//DropForeignKeySQL returns sql to drop a foreign key
-
 func columnSQL(c *db.Column) (string, error) {
 	var ret = "\"" + c.Name + "\""
 	if c.AutoIncrement == false {
