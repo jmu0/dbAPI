@@ -24,8 +24,8 @@ type Conn interface {
 	AddColumnSQL(schemaName, tableName string, col *Column) (string, error)
 	DropColumnSQL(schemaName, tableName, columnName string) string
 	AlterColumnSQL(schemaName, tableName string, col *Column) (string, error)
-	//TODO add foreign key
-	//TODO drop foreign key
+	AddForeignKeySQL(schemaName, tableName string, fk *ForeignKey) string
+	DropForeignKeySQL(schemaName, tableName, keyName string) string
 }
 
 //Column holds column data

@@ -40,7 +40,6 @@ func main() {
 }
 
 func connect() db.Conn {
-	//TODO use settings
 	var err error
 	var tp, host, user, pwd string
 	tp = ask("driver")
@@ -101,7 +100,7 @@ func ask(key string) string {
 		return s
 	}
 	var ret string
-	fmt.Print(key + ": ")
+	fmt.Print("(" + os.Args[0] + ") " + key + ": ")
 	fmt.Scanln(&ret)
 	return ret
 }

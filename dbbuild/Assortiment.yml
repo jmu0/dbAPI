@@ -1,0 +1,264 @@
+schema_name: Assortiment
+tables:
+- table_name: Artikel
+  schema: Assortiment
+  columns:
+  - name: Naamcode
+    type: string
+    length: 8
+    primarykey: true
+  - name: Maatcode
+    type: string
+    length: 10
+    primarykey: true
+  - name: Prijs
+    type: string
+    length: 10
+  - name: PrijsHfl
+    type: string
+    length: 10
+  - name: Foto
+    type: int
+    length: 11
+    default: "0"
+  - name: FlexiLabel
+    type: int
+    length: 11
+    default: "0"
+  - name: InfoCompleet
+    type: string
+    length: 100
+  - name: BTW_code
+    type: string
+    length: 15
+  - name: VE
+    type: int
+    length: 11
+    default: "1"
+  - name: AantalAfboeken
+    type: int
+    length: 11
+    default: "0"
+  - name: MaatcodeAfboeken
+    type: string
+    length: 10
+  - name: Cat
+    type: string
+    length: 8
+  - name: CategorieA
+    type: string
+    length: 35
+    default: Diversen
+  - name: Hoogte
+    type: int
+    length: 11
+    default: "0"
+  - name: Ingevoerd_op
+    type: string
+  - name: EAN
+    type: string
+    length: 12
+    default: "0"
+  - name: Volgr
+    type: string
+    length: 10
+  - name: AantalLaag
+    type: int
+    length: 12
+    default: "0"
+  - name: AantalLagen
+    type: int
+    length: 11
+    default: "0"
+  - name: CcPp
+    type: string
+    length: 6
+  - name: TipTop
+    type: string
+    length: 3
+    default: "0"
+  foreign_keys:
+  - name: Assortiment_Naamcode_fkey
+    fromcols: Naamcode
+    totable: Assortiment.Plant
+    tocols: Naamcode
+  indexes:
+  - name: Assortiment_Artikel_Cat_fkey
+    columns: Cat
+  - name: Assortiment_Artikel_Maatcode_fkey
+    columns: Maatcode
+  - columns: AantalLaag,AantalLagen
+- table_name: Categorie
+  schema: Assortiment
+  columns:
+  - name: Cat
+    type: string
+    length: 8
+    primarykey: true
+  - name: Omschrijving
+    type: string
+    length: 50
+  foreign_keys:
+  - fromcols: Cat
+    totable: Assortiment.Artikel
+    tocols: Cat
+- table_name: Plant
+  schema: Assortiment
+  columns:
+  - name: Naamcode
+    type: string
+    length: 8
+    primarykey: true
+  - name: LatijnseNaam
+    type: string
+    length: 8
+- table_name: Voorraad
+  schema: Assortiment
+  columns:
+  - name: Naamcode
+    type: string
+    length: 8
+    primarykey: true
+  - name: Maatcode
+    type: string
+    length: 10
+    primarykey: true
+  - name: Lokatie
+    type: string
+    length: 8
+    primarykey: true
+  - name: Aantal
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: VE
+    type: int
+    length: 11
+    default: "1"
+  - name: Plaats
+    type: string
+    length: 5
+    nullable: true
+  - name: Partijcode
+    type: string
+    length: 10
+    primarykey: true
+    default: "201010"
+  - name: Prijs
+    type: string
+    length: 10
+    nullable: true
+  - name: Oorsprongkelijk
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: InPrijslijst
+    type: int
+    length: 11
+    nullable: true
+    default: "1"
+  - name: Aktief
+    type: int
+    length: 11
+    nullable: true
+    default: "1"
+  - name: WebValid
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: WebAktief
+    type: int
+    length: 11
+    nullable: true
+    default: "1"
+  - name: Volgorde
+    type: float
+    nullable: true
+    default: "0"
+  - name: PerLaag
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: Lagen
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: Fust
+    type: string
+    length: 2
+    nullable: true
+    default: CC
+  - name: Stadium
+    type: string
+    length: 1
+    nullable: true
+  - name: OpmerkingenIntern
+    type: string
+    length: 200
+    nullable: true
+  - name: KanOnderNul
+    type: int
+    length: 11
+    nullable: true
+  - name: Signaal
+    type: string
+    length: 200
+    nullable: true
+  - name: Opmerkingen
+    type: string
+    length: 150
+    nullable: true
+  - name: PartijDetailLokatieID
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: Produktie
+    type: string
+    length: 30
+    nullable: true
+  - name: VanWeek
+    type: string
+    length: 6
+    nullable: true
+  - name: TotWeek
+    type: string
+    length: 6
+    nullable: true
+  - name: Sorteren
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: WaarderingID
+    type: string
+    length: 10
+    nullable: true
+  - name: SkipVoorraadUpdate
+    type: int
+    length: 11
+    nullable: true
+    default: "0"
+  - name: ExtID
+    type: string
+    length: 20
+    nullable: true
+  indexes:
+  - name: Aktief_index
+    columns: Aktief
+  - name: InPrijslijst_index
+    columns: InPrijslijst
+  - name: LokatieKey
+    columns: Lokatie
+  - name: MaatcodeKey
+    columns: Maatcode
+  - name: NaamcodeKey
+    columns: Naamcode
+  - name: WebValid
+    columns: WebValid, WebAktief
+

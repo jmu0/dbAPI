@@ -1,5 +1,7 @@
 package db
 
+import "errors"
+
 //GetTable reads table struct from database
 func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
 	var err error
@@ -61,6 +63,7 @@ func GetSchema(schemaName string, conn Conn) (Schema, error) {
 //UpdateTableSQL compares table struct to database and returns SQL to modify/create table in database
 func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 	var sql, tmp string
+	var toTable Table
 	var err error
 	if updateSchema && HasSchema(tbl.Schema, conn) == false {
 		tmp := conn.CreateSchemaSQL(tbl.Schema)
@@ -79,8 +82,21 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 		}
 		sql += tmp
 	} else {
-		return "-- TODO: check table columns&foreign keys: " + tbl.Schema + "." + tbl.Name, nil
-		//TODO compare table struct to database and create sql
+		toTable, err = GetTable(tbl.Schema, tbl.Name, conn)
+		if err != nil {
+			return "", err
+		}
+		tmp, err = compareCols(tbl.Schema, tbl.Name, tbl.Columns, toTable.Columns, conn)
+		if err != nil {
+			return "", err
+		}
+		if len(sql) > 0 {
+			sql += "\n"
+		}
+		sql += tmp
+		//TODO test compare columns sql
+		//TODO compare indexes
+		//TODO compare foreign keys
 	}
 
 	return sql, nil
@@ -108,4 +124,53 @@ func UpdateSchemaSQL(schema *Schema, conn Conn) (string, error) {
 		}
 	}
 	return sql, nil
+}
+
+//compares columns and returns sql to add/remove/update a column in the database
+func compareCols(schemaName, tableName string, from, to []Column, conn Conn) (string, error) {
+	var ret, tmp string
+	var err error
+	var toCol Column
+	for _, c := range from {
+		if toCol, err = findCol(c.Name, to); err == nil {
+			if toCol.Type != c.Type || toCol.Length != c.Length || toCol.DefaultValue != c.DefaultValue || toCol.Nullable != c.Nullable {
+				tmp, err = conn.AlterColumnSQL(schemaName, tableName, &c)
+				if err != nil {
+					return "", err
+				}
+				if len(ret) > 0 {
+					ret += "\n"
+				}
+				ret += tmp
+
+			}
+		} else {
+			tmp, err = conn.AddColumnSQL(schemaName, tableName, &c)
+			if err != nil {
+				return "", err
+			}
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += tmp
+		}
+	}
+	for _, c := range to {
+		if toCol, err = findCol(c.Name, from); err != nil {
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += conn.DropColumnSQL(schemaName, tableName, c.Name)
+		}
+	}
+	return ret, nil
+}
+
+func findCol(colName string, cols []Column) (Column, error) {
+	for _, c := range cols {
+		if c.Name == colName {
+			return c, nil
+		}
+	}
+	return Column{}, errors.New("Column " + colName + " not found in given columns")
 }

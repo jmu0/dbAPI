@@ -96,7 +96,7 @@ func (c *Conn) AddColumnSQL(schemaName, tableName string, col *db.Column) (strin
 	if err != nil {
 		return "", err
 	}
-	query += "\n\tadd " + tmp
+	query += "\n\tadd " + tmp + ";"
 	return query, nil
 }
 
@@ -109,13 +109,32 @@ func (c *Conn) DropColumnSQL(schemaName, tableName, columnName string) string {
 
 //AlterColumnSQL returns sql to alter column
 func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (string, error) {
-	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName)
+	query := "alter table " + schemaName + "." + tableName
 	tmp, err := columnSQL(col)
 	if err != nil {
 		return "", err
 	}
-	query += "\n\tmodify " + tmp
+	query += "\n\tmodify " + tmp + ";"
 	return query, nil
+}
+
+//AddForeignKeySQL returns sql to add foreign key to table
+func (c *Conn) AddForeignKeySQL(schemaName, tableName string, fk *db.ForeignKey) string {
+	if fk.Name == "" {
+		fk.Name = strings.Replace(tableName, ".", "_", -1) + "_"
+		fk.Name += strings.Replace(strings.Replace(fk.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
+	}
+	query := "alter table " + schemaName + "." + tableName + "\n\t"
+	query += "add constraint " + fk.Name
+	query += " foreign key (" + fk.FromCols + ") references " + fk.ToTable + " (" + fk.ToCols + ");"
+	return query
+}
+
+//DropForeignKeySQL returns sql to drop foreign key from table
+func (c *Conn) DropForeignKeySQL(schemaName, tableName, keyName string) string {
+	query := "alter table " + schemaName + "." + tableName + "\n\t"
+	query += "drop foreign key " + keyName + ";"
+	return query
 }
 
 func columnSQL(c *db.Column) (string, error) {

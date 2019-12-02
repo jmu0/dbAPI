@@ -164,6 +164,26 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 	return query, nil
 }
 
+//AddForeignKeySQL returns sql to add foreign key to table
+func (c *Conn) AddForeignKeySQL(schemaName, tableName string, fk *db.ForeignKey) string {
+	if fk.Name == "" {
+		fk.Name = strings.Replace(tableName, ".", "_", -1) + "_"
+		fk.Name += strings.Replace(strings.Replace(fk.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
+	}
+	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName) + "\n\t"
+	query += "add constraint " + db.DoubleQuote(fk.Name)
+	query += " foreign key (" + db.DoubleQuote(fk.FromCols) + ") references " + db.DoubleQuote(fk.ToTable)
+	query += " (" + db.DoubleQuote(fk.ToCols) + ");"
+	return query
+}
+
+//DropForeignKeySQL returns sql to drop foreign key from table
+func (c *Conn) DropForeignKeySQL(schemaName, tableName, keyName string) string {
+	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName) + "\n\t"
+	query += "drop constraint " + db.DoubleQuote(keyName) + ";"
+	return query
+}
+
 func columnSQL(c *db.Column) (string, error) {
 	var ret = "\"" + c.Name + "\""
 	if c.AutoIncrement == false {
