@@ -66,7 +66,7 @@ func (c *Conn) GetSchemaNames() ([]string, error) {
 		return dbs, err
 	}
 	if rows == nil {
-		return dbs, errors.New("No databases found")
+		return dbs, errors.New("No schemas found")
 	}
 	dbName := ""
 	for rows.Next() {
@@ -269,6 +269,13 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 				col.AutoIncrement = true
 			} else {
 				col.AutoIncrement = false
+			}
+			if strings.Contains(col.DefaultValue, "::") {
+				spl := strings.Split(col.DefaultValue, "::")
+				if len(spl) > 0 {
+					col.DefaultValue = spl[0]
+				}
+				col.DefaultValue = strings.Replace(col.DefaultValue, "'", "", -1)
 			}
 			col.Type = mapDataType(db.Interface2string(tp, false))
 			if col.Type == "dbdate" {

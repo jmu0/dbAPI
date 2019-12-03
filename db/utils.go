@@ -190,3 +190,10 @@ func SortTablesByForeignKey(tbls []Table) {
 		return true
 	})
 }
+
+//SetIndexName sets index name if it is empty or if its the same as Columns
+func SetIndexName(schemaName, tableName string, index *Index) {
+	if len(index.Name) == 0 || index.Name == index.Columns {
+		index.Name = schemaName + "_" + tableName + "_" + strings.Replace(index.Columns, ", ", "_", -1) + "_index"
+	}
+}

@@ -76,9 +76,7 @@ func (c *Conn) DropTableSQL(tbl *db.Table) string {
 
 //CreateIndexSQL get create index sql
 func (c *Conn) CreateIndexSQL(schemaName, tableName string, index *db.Index) string {
-	if len(index.Name) == 0 || index.Name == index.Columns {
-		index.Name = schemaName + "_" + tableName + "_" + strings.Replace(index.Columns, ", ", "_", -1) + "_index"
-	}
+	db.SetIndexName(schemaName, tableName, index)
 	query := "create index " + db.DoubleQuote(index.Name) + " on " + db.DoubleQuote(schemaName+"."+tableName)
 	query += " (" + db.DoubleQuote(index.Columns) + ");"
 	return query
@@ -96,7 +94,7 @@ func (c *Conn) AddColumnSQL(schemaName, tableName string, col *db.Column) (strin
 	if err != nil {
 		return "", err
 	}
-	query += "\n\tadd " + tmp
+	query += "\n\tadd " + tmp + ";"
 	return query, nil
 }
 

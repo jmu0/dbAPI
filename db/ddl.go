@@ -1,6 +1,9 @@
 package db
 
-import "errors"
+import (
+	"errors"
+	"log"
+)
 
 //GetTable reads table struct from database
 func GetTable(schemaName, tableName string, conn Conn) (Table, error) {
@@ -94,8 +97,14 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 			sql += "\n"
 		}
 		sql += tmp
-		//TODO test compare columns sql
-		//TODO compare indexes
+		tmp = compareIndexes(tbl.Schema, tbl.Name, tbl.Indexes, toTable.Indexes, conn)
+		if len(tmp) > 0 {
+			if len(sql) > 0 {
+				sql += "\n"
+			}
+			sql += tmp
+		}
+		//TODO test compare indexes
 		//TODO compare foreign keys
 	}
 
@@ -107,6 +116,7 @@ func UpdateSchemaSQL(schema *Schema, conn Conn) (string, error) {
 	var sql, tmp string
 	var err error
 	if HasSchema(schema.Name, conn) == false {
+		log.Fatal("create schema:", schema.Name)
 		tmp := conn.CreateSchemaSQL(schema.Name)
 		if len(sql) > 0 {
 			sql += "\n"
@@ -133,7 +143,10 @@ func compareCols(schemaName, tableName string, from, to []Column, conn Conn) (st
 	var toCol Column
 	for _, c := range from {
 		if toCol, err = findCol(c.Name, to); err == nil {
-			if toCol.Type != c.Type || toCol.Length != c.Length || toCol.DefaultValue != c.DefaultValue || toCol.Nullable != c.Nullable {
+			if toCol.Type != c.Type ||
+				(toCol.Length != c.Length && c.Type == "string") ||
+				toCol.DefaultValue != c.DefaultValue ||
+				toCol.Nullable != c.Nullable {
 				tmp, err = conn.AlterColumnSQL(schemaName, tableName, &c)
 				if err != nil {
 					return "", err
@@ -166,6 +179,42 @@ func compareCols(schemaName, tableName string, from, to []Column, conn Conn) (st
 	return ret, nil
 }
 
+//compares indexes and returns sql to add/remove/update an index in the database
+func compareIndexes(schemaName, tableName string, from, to []Index, conn Conn) string {
+	var ret, tmp string
+	var err error
+	var toIndex Index
+	for j, i := range from {
+		SetIndexName(schemaName, tableName, &i)
+		from[j] = i
+		if toIndex, err = findIndex(i.Name, to); err == nil {
+			if toIndex.Columns != i.Columns {
+				tmp = conn.DropIndexSQL(schemaName, tableName, i.Name)
+				tmp += "\n" + conn.CreateIndexSQL(schemaName, tableName, &i)
+				if len(ret) > 0 {
+					ret += "\n"
+				}
+				ret += tmp
+			}
+		} else {
+			tmp = conn.CreateIndexSQL(schemaName, tableName, &i)
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += tmp
+		}
+	}
+	for _, i := range to {
+		if toIndex, err = findIndex(i.Name, from); err != nil {
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += conn.DropIndexSQL(schemaName, tableName, i.Name)
+		}
+	}
+	return ret
+}
+
 func findCol(colName string, cols []Column) (Column, error) {
 	for _, c := range cols {
 		if c.Name == colName {
@@ -173,4 +222,12 @@ func findCol(colName string, cols []Column) (Column, error) {
 		}
 	}
 	return Column{}, errors.New("Column " + colName + " not found in given columns")
+}
+func findIndex(iName string, indexes []Index) (Index, error) {
+	for _, i := range indexes {
+		if i.Name == iName {
+			return i, nil
+		}
+	}
+	return Index{}, errors.New("Index " + iName + " not found in given indexes")
 }

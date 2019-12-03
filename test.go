@@ -203,13 +203,13 @@ func testYml2Db() {
 	}
 	s.Name = s.Name + "1"
 	fmt.Println(d.PreSQL())
-	sql, err := d.DropSchemaSQL(s.Name)
+	sql := d.DropSchemaSQL(s.Name)
 	fmt.Println(sql)
-	sql, err = d.CreateSchemaSQL(s.Name)
+	sql = d.CreateSchemaSQL(s.Name)
 	fmt.Println(sql)
 	for _, t := range s.Tables {
 		t.Schema = t.Schema + "1"
-		sql, err = d.DropTableSQL(&t)
+		sql = d.DropTableSQL(&t)
 		fmt.Println(sql)
 		sql, err = d.CreateTableSQL(&t)
 		fmt.Println(sql)

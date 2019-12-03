@@ -76,9 +76,7 @@ func (c *Conn) DropTableSQL(tbl *db.Table) string {
 
 //CreateIndexSQL get create index sql
 func (c *Conn) CreateIndexSQL(schemaName, tableName string, index *db.Index) string {
-	if len(index.Name) == 0 || index.Name == index.Columns {
-		index.Name = strings.Replace(index.Columns, ", ", "_", -1) + "_index"
-	}
+	db.SetIndexName(schemaName, tableName, index)
 	query := "create index " + index.Name + " on " + schemaName + "." + tableName
 	query += " (" + index.Columns + ");"
 	return query
@@ -163,13 +161,7 @@ func columnSQL(c *db.Column) (string, error) {
 	}
 
 	if len(c.DefaultValue) > 0 {
-		if strings.Contains(c.DefaultValue, "::") {
-			spl := strings.Split(c.DefaultValue, "::")
-			if len(spl) > 0 {
-				c.DefaultValue = spl[0]
-			}
-			c.DefaultValue = strings.Replace(c.DefaultValue, "'", "", -1)
-		}
+
 		ret += " default '" + c.DefaultValue + "'"
 	}
 	return ret, nil

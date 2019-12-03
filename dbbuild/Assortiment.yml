@@ -55,6 +55,7 @@ tables:
     default: "0"
   - name: Ingevoerd_op
     type: string
+    length: 10
   - name: EAN
     type: string
     length: 12
@@ -64,11 +65,11 @@ tables:
     length: 10
   - name: AantalLaag
     type: int
-    length: 12
+    length: 11
     default: "0"
   - name: AantalLagen
     type: int
-    length: 11
+    length: 12
     default: "0"
   - name: CcPp
     type: string
@@ -249,10 +250,8 @@ tables:
     length: 20
     nullable: true
   indexes:
-  - name: Aktief_index
-    columns: Aktief
-  - name: InPrijslijst_index
-    columns: InPrijslijst
+  - columns: Aktief
+  - columns: InPrijslijst
   - name: LokatieKey
     columns: Lokatie
   - name: MaatcodeKey
