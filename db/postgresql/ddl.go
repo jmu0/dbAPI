@@ -136,16 +136,18 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 		query += ";"
 	}
 	if orig.DefaultValue != col.DefaultValue {
-		if len(query) > 0 {
-			query += "\n"
+		if (orig.Type == "dbdate" && col.DefaultValue == "CURRENT_TIMESTAMP") == false { //skip current timestamp cols
+			if len(query) > 0 {
+				query += "\n"
+			}
+			query += alter + "\n\talter column " + db.DoubleQuote(col.Name)
+			if col.DefaultValue == "" {
+				query += " drop default"
+			} else {
+				query += " set default '" + col.DefaultValue + "'"
+			}
+			query += ";"
 		}
-		query += alter + "\n\talter column " + db.DoubleQuote(col.Name)
-		if col.DefaultValue == "" {
-			query += " drop default"
-		} else {
-			query += " set default '" + col.DefaultValue + "'"
-		}
-		query += ";"
 	}
 	if orig.Nullable != col.Nullable {
 		if len(query) > 0 {

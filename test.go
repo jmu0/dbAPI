@@ -22,7 +22,7 @@ func main() {
 	// testGraphql()
 	// testGetSQL()
 	// testDb2Yml()
-	testYml2Db()
+	//testYml2Db()
 }
 
 func testPostgres() {

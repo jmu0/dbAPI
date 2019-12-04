@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"log"
+	"strings"
 )
 
 //GetTable reads table struct from database
@@ -104,8 +105,14 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 			}
 			sql += tmp
 		}
-		//TODO test compare indexes
-		//TODO compare foreign keys
+		tmp = compareForeignKeys(tbl.Schema, tbl.Name, tbl.ForeignKeys, toTable.ForeignKeys, conn)
+		if len(tmp) > 0 {
+			if len(sql) > 0 {
+				sql += "\n"
+			}
+			sql += tmp
+		}
+		//TODO test compare foreign keys
 	}
 
 	return sql, nil
@@ -116,7 +123,7 @@ func UpdateSchemaSQL(schema *Schema, conn Conn) (string, error) {
 	var sql, tmp string
 	var err error
 	if HasSchema(schema.Name, conn) == false {
-		log.Fatal("create schema:", schema.Name)
+		// log.Fatal("create schema:", schema.Name)
 		tmp := conn.CreateSchemaSQL(schema.Name)
 		if len(sql) > 0 {
 			sql += "\n"
@@ -188,7 +195,10 @@ func compareIndexes(schemaName, tableName string, from, to []Index, conn Conn) s
 		SetIndexName(schemaName, tableName, &i)
 		from[j] = i
 		if toIndex, err = findIndex(i.Name, to); err == nil {
+			toIndex.Columns = strings.Replace(toIndex.Columns, ", ", ",", -1)
+			i.Columns = strings.Replace(i.Columns, ", ", ",", -1)
 			if toIndex.Columns != i.Columns {
+				log.Fatal(toIndex, i)
 				tmp = conn.DropIndexSQL(schemaName, tableName, i.Name)
 				tmp += "\n" + conn.CreateIndexSQL(schemaName, tableName, &i)
 				if len(ret) > 0 {
@@ -215,6 +225,48 @@ func compareIndexes(schemaName, tableName string, from, to []Index, conn Conn) s
 	return ret
 }
 
+//compares indexes and returns sql to add/remove/update an index in the database
+func compareForeignKeys(schemaName, tableName string, from, to []ForeignKey, conn Conn) string {
+	var ret, tmp string
+	var err error
+	var toFK ForeignKey
+	for j, i := range from {
+		SetForeignKeyName(&i)
+		from[j] = i
+		if toFK, err = findForeignKey(i.Name, to); err == nil {
+			toFK.ToCols = strings.Replace(toFK.ToCols, ", ", ",", -1)
+			i.ToCols = strings.Replace(i.ToCols, ", ", ",", -1)
+			toFK.FromCols = strings.Replace(toFK.FromCols, ", ", ",", -1)
+			i.FromCols = strings.Replace(i.FromCols, ", ", ",", -1)
+			if toFK.ToCols != i.ToCols ||
+				toFK.FromCols != i.FromCols ||
+				toFK.ToTable != i.ToTable {
+				tmp = conn.DropForeignKeySQL(schemaName, tableName, i.Name)
+				tmp += "\n" + conn.AddForeignKeySQL(schemaName, tableName, &i)
+				if len(ret) > 0 {
+					ret += "\n"
+				}
+				ret += tmp
+			}
+		} else {
+			tmp = conn.AddForeignKeySQL(schemaName, tableName, &i)
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += tmp
+		}
+	}
+	for _, i := range to {
+		if toFK, err = findForeignKey(i.Name, from); err != nil {
+			if len(ret) > 0 {
+				ret += "\n"
+			}
+			ret += conn.DropForeignKeySQL(schemaName, tableName, i.Name)
+		}
+	}
+	return ret
+}
+
 func findCol(colName string, cols []Column) (Column, error) {
 	for _, c := range cols {
 		if c.Name == colName {
@@ -230,4 +282,12 @@ func findIndex(iName string, indexes []Index) (Index, error) {
 		}
 	}
 	return Index{}, errors.New("Index " + iName + " not found in given indexes")
+}
+func findForeignKey(fkName string, fk []ForeignKey) (ForeignKey, error) {
+	for _, i := range fk {
+		if i.Name == fkName {
+			return i, nil
+		}
+	}
+	return ForeignKey{}, errors.New("Foreign key " + fkName + " not found in given foreignkeys")
 }

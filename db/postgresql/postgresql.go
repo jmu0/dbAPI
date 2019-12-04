@@ -119,25 +119,48 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
 	var ret []db.Relationship
 	var rel db.Relationship
-	query := fmt.Sprintf(`select name, fromTbl, string_agg(distinct(fromCol),', ') as fromCols, toTbl, string_agg(distinct(toCol), ', ') as toCols 
-	from (SELECT
-			tc.constraint_name as name,
-			concat(tc.table_schema, '.', tc.table_name) as fromTbl, 
-			kcu.column_name as fromCol, 
-			concat(ccu.table_schema, '.', ccu.table_name) AS toTbl,
-			ccu.column_name AS toCol
-		FROM 
-			information_schema.table_constraints AS tc 
-			JOIN information_schema.key_column_usage AS kcu
-		  	ON tc.constraint_name = kcu.constraint_name
-		  	AND tc.table_schema = kcu.table_schema
-			JOIN information_schema.constraint_column_usage AS ccu
-		  	ON ccu.constraint_name = tc.constraint_name
-		  	AND ccu.table_schema = tc.table_schema
-		WHERE tc.constraint_type = 'FOREIGN KEY' 
-		AND ((tc.table_schema='%s' and tc.table_name='%s') 
-		or (ccu.table_schema='%s' and ccu.table_name='%s'))) as regels
-		group by name, fromTbl, toTbl`, schemaName, tableName, schemaName, tableName)
+	query := fmt.Sprintf(`
+	select 
+  name, 
+  fromTbl, 
+  string_agg(fromCol,', ' order by ordinal_position) as fromCols,
+  toTbl,
+  string_agg(toCol,', ' order by ordinal_position) as toCols
+from (
+select distinct
+  kcu.constraint_name as name,
+  kcu.table_schema || '.' || kcu.table_name as fromTbl,
+  rel_kcu.table_schema || '.' || rel_kcu.table_name as toTbl,
+  kcu.column_name as fromCol,
+  rel_kcu.column_name as toCol,
+  kcu.ordinal_position
+from information_schema.table_constraints tco
+join information_schema.key_column_usage kcu on tco.constraint_schema = kcu.constraint_schema
+  and tco.constraint_name = kcu.constraint_name
+join information_schema.referential_constraints rco on tco.constraint_schema = rco.constraint_schema
+  and tco.constraint_name = rco.constraint_name
+join information_schema.key_column_usage rel_kcu on rco.unique_constraint_schema = rel_kcu.constraint_schema
+  and rco.unique_constraint_name = rel_kcu.constraint_name
+  and kcu.ordinal_position = rel_kcu.ordinal_position
+where
+  tco.constraint_type = 'FOREIGN KEY'
+  and (
+    (
+      kcu.table_schema = '%s'
+      and kcu.table_name = '%s'
+    )
+    or (
+      rel_kcu.table_schema = '%s'
+      and rel_kcu.table_name = '%s'
+    )
+  )
+order by
+  kcu.ordinal_position
+) as rows
+group by
+  name,
+  fromTbl,
+  toTbl`, schemaName, tableName, schemaName, tableName)
 	res, err := db.Query(c, query)
 	if err != nil {
 		return ret, err

@@ -206,7 +206,6 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	if err == nil && rows != nil {
 		for rows.Next() {
 			rows.Scan(&field, &tp, &null, &key, &def, &extra)
-			// log.Println("DEBUG: field:", db.Interface2string(field, false), "tp:", tp, "null:", db.Interface2string(null, false), "key:", key, "def:", def, "extra:", extra)
 			col = db.Column{
 				Name:         db.Interface2string(field, false),
 				DefaultValue: db.Interface2string(def, false),
@@ -230,9 +229,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 			cols = append(cols, col)
 		}
 	}
-	// if len(cols) == 0 {
-	// 	return nil, errors.New("No columns found")
-	// }
+
 	schemaCache[schemaName+"."+tableName] = cols
 	return cols, nil
 }
@@ -254,24 +251,29 @@ func mapDataType(dbType string) (string, int) {
 	}
 	dataTypes := map[string]string{
 		"varchar":   "string",
+		"text":      "string",
+		"longtext":  "string",
+		"int":       "int",
 		"tinyint":   "int",
 		"smallint":  "int",
 		"bigint":    "int",
-		"text":      "string",
 		"datetime":  "dbdate",
 		"timestamp": "dbdate",
-		"int":       "int",
+		"float":     "float",
 		"double":    "float",
 		"decimal":   "float",
-		"float":     "float",
 	}
 	if t, ok := dataTypes[tp]; ok {
 		if t == "dbdate" {
 			ln = 10
 		}
 		if tp == "text" {
+			ln = 1000
+		}
+		if tp == "longtext" {
 			ln = 10000
 		}
+
 		return t, ln
 	}
 	log.Println("WARNING: unmapped datatype: ", tp)

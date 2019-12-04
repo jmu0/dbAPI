@@ -44,7 +44,7 @@ func handleYaml() {
 }
 
 func handleSQL() {
-	var file = ask("file")
+	var file string
 	var sql, pre, post, fileType string
 	var err error
 	var schema db.Schema
@@ -52,14 +52,19 @@ func handleSQL() {
 	var conn db.Conn
 	var bytes []byte
 
-	fileType, err = getFileType(file)
+	bytes, err = readStdIn()
+	if err != nil {
+		file = ask("file")
+		bytes, err = ioutil.ReadFile(file)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	fileType, err = getType(bytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	bytes, err = ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	conn = connect()
 	if fileType == "table" {
 		tbl, err = db.Yaml2Table(bytes)
@@ -94,7 +99,21 @@ func handleSQL() {
 	fmt.Println(sql)
 }
 
+func getType(bytes []byte) (string, error) {
+	if len(bytes) < 10 {
+		return "", errors.New("Invalid yaml")
+	}
+	spl := strings.Split(string(bytes[:10]), "_")
+	if spl[0] == "table" {
+		return "table", nil
+	} else if spl[0] == "schema" {
+		return "schema", nil
+	}
+	return "", errors.New("Invalid yaml")
+}
+
 func getFileType(filename string) (string, error) {
+	//TODO: remove?
 	file, err := os.Open(filename)
 	if err != nil {
 		return "", err

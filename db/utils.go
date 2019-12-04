@@ -197,3 +197,11 @@ func SetIndexName(schemaName, tableName string, index *Index) {
 		index.Name = schemaName + "_" + tableName + "_" + strings.Replace(strings.Replace(index.Columns, ", ", "_", -1), ",", "_", -1) + "_index"
 	}
 }
+
+//SetForeignKeyName sets foreign key name if it is empty
+func SetForeignKeyName(fk *ForeignKey) {
+	if len(fk.Name) == 0 {
+		fk.Name = strings.Replace(fk.ToTable, ".", "_", -1) + "_"
+		fk.Name += strings.Replace(strings.Replace(fk.ToCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
+	}
+}

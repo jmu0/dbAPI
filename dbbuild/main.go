@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -77,7 +79,6 @@ func connect() db.Conn {
 	}
 	return nil
 }
-
 func printHelp() {
 	fmt.Println(`Usage:
 dbbuild html
@@ -87,12 +88,12 @@ dbbuild template
   Reads table structure from database and builds html template
   env/clo: driver, hostname, database, username, password, schema, table
 dbbuild yaml
-  Reads table structure from database and builds yaml file
-  env/clo: driver, hostname, database, username, password, schema, table
+  Reads table structure from database and builds yaml
+  env/clo: driver, hostname, database, username, password, schema, [table]
 dbbuild sql
   Creates sql to create/modify database from yaml file
   env/clo: driver, hostname, database, username, password, file
-  `)
+  reads yaml from file (--file=..) or stdin`)
 }
 
 func ask(key string) string {
@@ -103,4 +104,15 @@ func ask(key string) string {
 	fmt.Print("(" + os.Args[0] + ") " + key + ": ")
 	fmt.Scanln(&ret)
 	return ret
+}
+
+func readStdIn() ([]byte, error) {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return []byte{}, err
+	}
+	if fi.Mode()&os.ModeNamedPipe == 0 {
+		return []byte{}, errors.New("No pipe")
+	}
+	return ioutil.ReadAll(os.Stdin)
 }
