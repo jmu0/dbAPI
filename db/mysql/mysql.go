@@ -161,7 +161,7 @@ func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
 	query := fmt.Sprintf(`
 	select 
 		index_name as 'index',
-		group_concat(column_name separator ', ') as columns
+		group_concat(column_name order by seq_in_index separator ', ') as columns
 	from information_schema.statistics
 	group by 
 		table_schema,
@@ -172,6 +172,7 @@ func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
 		and table_name = '%s'
 		and index_name <> 'PRIMARY'
 	`, schemaName, tableName)
+	// log.Fatal(query)
 	res, err := db.Query(c, query)
 	if err != nil {
 		return ret, err
@@ -253,10 +254,12 @@ func mapDataType(dbType string) (string, int) {
 		"varchar":   "string",
 		"text":      "string",
 		"longtext":  "string",
+		"char":      "string",
 		"int":       "int",
 		"tinyint":   "int",
 		"smallint":  "int",
 		"bigint":    "int",
+		"date":      "dbdate",
 		"datetime":  "dbdate",
 		"timestamp": "dbdate",
 		"float":     "float",
@@ -278,4 +281,26 @@ func mapDataType(dbType string) (string, int) {
 	}
 	log.Println("WARNING: unmapped datatype: ", tp)
 	return "unknown:" + tp, ln
+}
+
+//Quote puts quotes around string for in SQL
+func (c *Conn) Quote(str string) string {
+	var res, sep string
+	var spl []string
+	if strings.Contains(str, ",") {
+		sep = ", "
+		spl = strings.Split(str, ",")
+	} else if strings.Contains(str, ".") {
+		sep = "."
+		spl = strings.Split(str, ".")
+	} else {
+		return "`" + str + "`"
+	}
+	for _, item := range spl {
+		if len(res) > 0 {
+			res += sep
+		}
+		res += "`" + strings.TrimSpace(item) + "`"
+	}
+	return res
 }

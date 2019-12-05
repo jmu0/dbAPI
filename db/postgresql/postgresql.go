@@ -343,3 +343,25 @@ func mapDataType(dbType string) string {
 	}
 	return "unknown"
 }
+
+//Quote puts quotes around string for in SQL
+func (c *Conn) Quote(str string) string {
+	var res, sep string
+	var spl []string
+	if strings.Contains(str, ",") {
+		sep = ", "
+		spl = strings.Split(str, ",")
+	} else if strings.Contains(str, ".") {
+		sep = "."
+		spl = strings.Split(str, ".")
+	} else {
+		return "\"" + str + "\""
+	}
+	for _, item := range spl {
+		if len(res) > 0 {
+			res += sep
+		}
+		res += "\"" + strings.TrimSpace(item) + "\""
+	}
+	return res
+}

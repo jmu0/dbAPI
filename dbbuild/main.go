@@ -35,6 +35,10 @@ func main() {
 		handleYaml()
 	case "sql":
 		handleSQL()
+	case "dump":
+		handleDump()
+	case "load":
+		handleLoad()
 	default:
 		printHelp()
 
@@ -93,7 +97,13 @@ dbbuild yaml
 dbbuild sql
   Creates sql to create/modify database from yaml file
   env/clo: driver, hostname, database, username, password, file
-  reads yaml from file (--file=..) or stdin`)
+  reads yaml from file (--file=..) or stdin
+dbbuild dump
+  Dumps data to .csv
+  env/clo: driver, hostname, database, username, password, [schema], [table]
+dbbuild load
+  Loads data from .csv file into table
+  env/clo: driver, hostname, database, username, password, [file]`)
 }
 
 func ask(key string) string {

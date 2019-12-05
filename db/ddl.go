@@ -64,6 +64,26 @@ func GetSchema(schemaName string, conn Conn) (Schema, error) {
 	return s, nil
 }
 
+//GetDatabase get all schemas in database
+func GetDatabase(databaseName string, conn Conn) (Database, error) {
+	var d = Database{
+		Name:    databaseName,
+		Schemas: make([]Schema, 0),
+	}
+	schemas, err := conn.GetSchemaNames()
+	if err != nil {
+		return d, err
+	}
+	for _, schemaName := range schemas {
+		schema, err := GetSchema(schemaName, conn)
+		if err != nil {
+			return d, err
+		}
+		d.Schemas = append(d.Schemas, schema)
+	}
+	return d, nil
+}
+
 //UpdateTableSQL compares table struct to database and returns SQL to modify/create table in database
 func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 	var sql, tmp string
@@ -112,9 +132,36 @@ func UpdateTableSQL(tbl *Table, conn Conn, updateSchema bool) (string, error) {
 			}
 			sql += tmp
 		}
-		//TODO test compare foreign keys
 	}
 
+	return sql, nil
+}
+
+//UpdateDatabaseSQL compares database struct to database and returns SQL to modify/create schemas/tables
+func UpdateDatabaseSQL(d *Database, conn Conn) (string, error) {
+	var sql, tmp string
+	var err error
+	var tables = make([]Table, 0)
+	for _, schema := range d.Schemas {
+		if HasSchema(schema.Name, conn) == false {
+			tmp = conn.CreateSchemaSQL(schema.Name)
+			if len(sql) > 0 {
+				sql += "\n"
+			}
+			sql += tmp
+		}
+		tables = append(tables, schema.Tables...)
+	}
+	SortTablesByForeignKey(tables)
+	for _, tbl := range tables {
+		tmp, err = UpdateTableSQL(&tbl, conn, false)
+		if err != nil {
+			return "", err
+		}
+		if len(tmp) > 0 {
+			sql += "\n" + tmp
+		}
+	}
 	return sql, nil
 }
 
@@ -158,11 +205,12 @@ func compareCols(schemaName, tableName string, from, to []Column, conn Conn) (st
 				if err != nil {
 					return "", err
 				}
-				if len(ret) > 0 {
+				if len(ret) > 0 && len(tmp) > 0 {
 					ret += "\n"
 				}
-				ret += tmp
-
+				if len(tmp) > 0 {
+					ret += tmp
+				}
 			}
 		} else {
 			tmp, err = conn.AddColumnSQL(schemaName, tableName, &c)
@@ -198,7 +246,7 @@ func compareIndexes(schemaName, tableName string, from, to []Index, conn Conn) s
 			toIndex.Columns = strings.Replace(toIndex.Columns, ", ", ",", -1)
 			i.Columns = strings.Replace(i.Columns, ", ", ",", -1)
 			if toIndex.Columns != i.Columns {
-				log.Fatal(toIndex, i)
+				log.Fatal(schemaName, tableName, toIndex, i)
 				tmp = conn.DropIndexSQL(schemaName, tableName, i.Name)
 				tmp += "\n" + conn.CreateIndexSQL(schemaName, tableName, &i)
 				if len(ret) > 0 {

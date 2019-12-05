@@ -13,6 +13,7 @@ type Conn interface {
 	GetRelationships(schemaName string, tableName string) ([]Relationship, error)
 	GetColumns(schemaName, tableName string) ([]Column, error)
 	GetIndexes(schemaName, tableName string) ([]Index, error)
+	Quote(str string) string
 	PreSQL() string  //sql to put at start of ddl query
 	PostSQL() string //sql to put at end of ddl query
 	CreateTableSQL(tbl *Table) (string, error)
@@ -77,4 +78,10 @@ type Table struct {
 type Schema struct {
 	Name   string  `json:"schema_name" yaml:"schema_name"`
 	Tables []Table `json:"tables" yaml:"tables"`
+}
+
+//Database struct
+type Database struct {
+	Name    string   `json:"database_name" yaml:"database_name"`
+	Schemas []Schema `json:"schemas" yaml:"schemas"`
 }

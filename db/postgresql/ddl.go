@@ -32,9 +32,9 @@ func (c *Conn) DropSchemaSQL(schemaName string) string {
 func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 	var query string
 	var primaryKey string
-	query = "create table " + db.DoubleQuote(tbl.Schema+"."+tbl.Name) + " ("
-	for i, c := range tbl.Columns {
-		csql, err := columnSQL(&c)
+	query = "create table " + c.Quote(tbl.Schema+"."+tbl.Name) + " ("
+	for i, col := range tbl.Columns {
+		csql, err := c.columnSQL(&col)
 		if err != nil {
 			return "", err
 		}
@@ -42,19 +42,21 @@ func (c *Conn) CreateTableSQL(tbl *db.Table) (string, error) {
 			query += ","
 		}
 		query += "\n\t" + csql
-		if c.PrimaryKey == true {
+		if col.PrimaryKey == true {
 			if len(primaryKey) > 0 {
 				primaryKey += ","
 			}
-			primaryKey += db.DoubleQuote(c.Name)
+			primaryKey += c.Quote(col.Name)
 		}
 	}
 	if len(primaryKey) > 0 {
 		query += ",\n\tprimary key (" + primaryKey + ")"
 	}
-	for _, r := range tbl.ForeignKeys {
-		query += ",\n\tconstraint " + strings.Replace(tbl.Name, ".", "_", -1) + "_" + strings.Replace(strings.Replace(r.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
-		query += " foreign key (" + db.DoubleQuote(r.FromCols) + ") references " + db.DoubleQuote(r.ToTable) + " (" + db.DoubleQuote(r.ToCols) + ") deferrable"
+	for i, r := range tbl.ForeignKeys {
+		db.SetForeignKeyName(&r)
+		tbl.ForeignKeys[i] = r
+		query += ",\n\tconstraint " + c.Quote(r.Name)
+		query += " foreign key (" + c.Quote(r.FromCols) + ") references " + c.Quote(r.ToTable) + " (" + c.Quote(r.ToCols) + ") deferrable"
 	}
 	query += "\n);"
 	for i, ind := range tbl.Indexes {
@@ -77,8 +79,8 @@ func (c *Conn) DropTableSQL(tbl *db.Table) string {
 //CreateIndexSQL get create index sql
 func (c *Conn) CreateIndexSQL(schemaName, tableName string, index *db.Index) string {
 	db.SetIndexName(schemaName, tableName, index)
-	query := "create index " + db.DoubleQuote(index.Name) + " on " + db.DoubleQuote(schemaName+"."+tableName)
-	query += " (" + db.DoubleQuote(index.Columns) + ");"
+	query := "create index " + c.Quote(index.Name) + " on " + c.Quote(schemaName+"."+tableName)
+	query += " (" + c.Quote(index.Columns) + ");"
 	return query
 }
 
@@ -89,8 +91,8 @@ func (c *Conn) DropIndexSQL(schemaName, tableName, indexName string) string {
 
 //AddColumnSQL returns sql to add a column
 func (c *Conn) AddColumnSQL(schemaName, tableName string, col *db.Column) (string, error) {
-	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName)
-	tmp, err := columnSQL(col)
+	query := "alter table " + c.Quote(schemaName+"."+tableName)
+	tmp, err := c.columnSQL(col)
 	if err != nil {
 		return "", err
 	}
@@ -100,22 +102,34 @@ func (c *Conn) AddColumnSQL(schemaName, tableName string, col *db.Column) (strin
 
 //DropColumnSQL returns sql to drop a column
 func (c *Conn) DropColumnSQL(schemaName, tableName, columnName string) string {
-	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName)
-	query += "\n\tdrop column " + db.DoubleQuote(columnName) + ";"
+	query := "alter table " + c.Quote(schemaName+"."+tableName)
+	query += "\n\tdrop column " + c.Quote(columnName) + ";"
 	return query
 }
 
 //AlterColumnSQL returns sql to alter column
 func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (string, error) {
 	var query string
-	alter := "alter table " + db.DoubleQuote(schemaName+"."+tableName)
+	alter := "alter table " + c.Quote(schemaName+"."+tableName)
 	orig, err := getColumn(schemaName, tableName, col.Name, c)
 	if err != nil {
 		return "", err
 	}
+
+	if col.AutoIncrement == true && orig.AutoIncrement == false {
+		return "", errors.New("Cannot change col " + orig.Name + " to auto-increment.")
+	}
+	if col.AutoIncrement == false && orig.AutoIncrement == true {
+		query += alter + "\n\t alter column " + c.Quote(col.Name) + " drop default;"
+		return query, nil
+	}
+	if col.AutoIncrement == true && orig.AutoIncrement == true {
+		return "", nil
+	}
+
 	if orig.Type != col.Type || orig.Length != col.Length {
 		query += alter + "\n\t"
-		query += "alter column " + db.DoubleQuote(col.Name) + " type"
+		query += "alter column " + c.Quote(col.Name) + " type"
 		switch col.Type {
 		case "string":
 			query += " varchar(" + strconv.Itoa(col.Length) + ")"
@@ -140,7 +154,7 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 			if len(query) > 0 {
 				query += "\n"
 			}
-			query += alter + "\n\talter column " + db.DoubleQuote(col.Name)
+			query += alter + "\n\talter column " + c.Quote(col.Name)
 			if col.DefaultValue == "" {
 				query += " drop default"
 			} else {
@@ -153,7 +167,7 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 		if len(query) > 0 {
 			query += "\n"
 		}
-		query += alter + "\n\talter column " + db.DoubleQuote(col.Name)
+		query += alter + "\n\talter column " + c.Quote(col.Name)
 		if col.Nullable == true {
 			query += " drop not null"
 		} else {
@@ -166,30 +180,31 @@ func (c *Conn) AlterColumnSQL(schemaName, tableName string, col *db.Column) (str
 
 //AddForeignKeySQL returns sql to add foreign key to table
 func (c *Conn) AddForeignKeySQL(schemaName, tableName string, fk *db.ForeignKey) string {
-	if fk.Name == "" {
-		fk.Name = strings.Replace(tableName, ".", "_", -1) + "_"
-		fk.Name += strings.Replace(strings.Replace(fk.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
-	}
-	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName) + "\n\t"
-	query += "add constraint " + db.DoubleQuote(fk.Name)
-	query += " foreign key (" + db.DoubleQuote(fk.FromCols) + ") references " + db.DoubleQuote(fk.ToTable)
-	query += " (" + db.DoubleQuote(fk.ToCols) + ");"
+	db.SetForeignKeyName(fk)
+	// if fk.Name == "" {
+	// 	fk.Name = strings.Replace(tableName, ".", "_", -1) + "_"
+	// 	fk.Name += strings.Replace(strings.Replace(fk.FromCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
+	// }
+	query := "alter table " + c.Quote(schemaName+"."+tableName) + "\n\t"
+	query += "add constraint " + c.Quote(fk.Name)
+	query += " foreign key (" + c.Quote(fk.FromCols) + ") references " + c.Quote(fk.ToTable)
+	query += " (" + c.Quote(fk.ToCols) + ");"
 	return query
 }
 
 //DropForeignKeySQL returns sql to drop foreign key from table
 func (c *Conn) DropForeignKeySQL(schemaName, tableName, keyName string) string {
-	query := "alter table " + db.DoubleQuote(schemaName+"."+tableName) + "\n\t"
-	query += "drop constraint " + db.DoubleQuote(keyName) + ";"
+	query := "alter table " + c.Quote(schemaName+"."+tableName) + "\n\t"
+	query += "drop constraint " + c.Quote(keyName) + ";"
 	return query
 }
 
-func columnSQL(c *db.Column) (string, error) {
-	var ret = "\"" + c.Name + "\""
-	if c.AutoIncrement == false {
-		switch c.Type {
+func (c *Conn) columnSQL(col *db.Column) (string, error) {
+	var ret = c.Quote(col.Name)
+	if col.AutoIncrement == false {
+		switch col.Type {
 		case "string":
-			ret += " varchar(" + strconv.Itoa(c.Length) + ")"
+			ret += " varchar(" + strconv.Itoa(col.Length) + ")"
 		case "int":
 			ret += " int"
 		case "float":
@@ -198,20 +213,20 @@ func columnSQL(c *db.Column) (string, error) {
 			ret += " boolean"
 		case "dbdate":
 			ret += " date"
-			if strings.Contains(c.DefaultValue, "CURRENT_TIMESTAMP") {
-				c.DefaultValue = "NOW()"
+			if strings.Contains(col.DefaultValue, "CURRENT_TIMESTAMP") {
+				col.DefaultValue = "NOW()"
 			}
 		default:
-			return "", errors.New("invalid type" + c.Type)
+			return "", errors.New("invalid type" + col.Type)
 		}
 	} else {
 		ret += " serial"
 	}
-	if c.Nullable == false {
+	if col.Nullable == false {
 		ret += " not null"
 	}
-	if len(c.DefaultValue) > 0 {
-		ret += " default '" + c.DefaultValue + "'"
+	if len(col.DefaultValue) > 0 {
+		ret += " default '" + col.DefaultValue + "'"
 	}
 	return ret, nil
 }

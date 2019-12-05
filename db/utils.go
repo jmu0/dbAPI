@@ -154,26 +154,48 @@ func HasTable(schemaName, tableName string, c Conn) bool {
 }
 
 //DoubleQuote puts quotes around string, (schema.table) and (col, col)
-func DoubleQuote(str string) string {
-	var res, sep string
-	var spl []string
-	if strings.Contains(str, ",") {
-		sep = ", "
-		spl = strings.Split(str, ",")
-	} else if strings.Contains(str, ".") {
-		sep = "."
-		spl = strings.Split(str, ".")
-	} else {
-		return "\"" + str + "\""
-	}
-	for _, item := range spl {
-		if len(res) > 0 {
-			res += sep
-		}
-		res += "\"" + strings.TrimSpace(item) + "\""
-	}
-	return res
-}
+//TODO: remove func DoubleQuote(str string) string {
+// 	var res, sep string
+// 	var spl []string
+// 	if strings.Contains(str, ",") {
+// 		sep = ", "
+// 		spl = strings.Split(str, ",")
+// 	} else if strings.Contains(str, ".") {
+// 		sep = "."
+// 		spl = strings.Split(str, ".")
+// 	} else {
+// 		return "\"" + str + "\""
+// 	}
+// 	for _, item := range spl {
+// 		if len(res) > 0 {
+// 			res += sep
+// 		}
+// 		res += "\"" + strings.TrimSpace(item) + "\""
+// 	}
+// 	return res
+// }
+
+//Backtick puts backticks around string, (schema.table) and (col, col)
+//TODO: remove func Backtick(str string) string {
+// 	var res, sep string
+// 	var spl []string
+// 	if strings.Contains(str, ",") {
+// 		sep = ", "
+// 		spl = strings.Split(str, ",")
+// 	} else if strings.Contains(str, ".") {
+// 		sep = "."
+// 		spl = strings.Split(str, ".")
+// 	} else {
+// 		return "`" + str + "`"
+// 	}
+// 	for _, item := range spl {
+// 		if len(res) > 0 {
+// 			res += sep
+// 		}
+// 		res += "`" + strings.TrimSpace(item) + "`"
+// 	}
+// 	return res
+// }
 
 // SortTablesByForeignKey sorts tables for building creat table SQL
 func SortTablesByForeignKey(tbls []Table) {
@@ -193,7 +215,11 @@ func SortTablesByForeignKey(tbls []Table) {
 
 //SetIndexName sets index name if it is empty or if its the same as Columns
 func SetIndexName(schemaName, tableName string, index *Index) {
-	if len(index.Name) == 0 || index.Name == index.Columns {
+	//force unique index names because differences postgres/mysql causes errors on duplicate names
+	if len(index.Name) == 0 ||
+		index.Name == index.Columns ||
+		strings.Contains(index.Name, schemaName) == false ||
+		strings.Contains(index.Name, tableName) == false {
 		index.Name = schemaName + "_" + tableName + "_" + strings.Replace(strings.Replace(index.Columns, ", ", "_", -1), ",", "_", -1) + "_index"
 	}
 }
