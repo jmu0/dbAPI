@@ -30,9 +30,12 @@ func handleDump() {
 		}
 		for _, tbl := range schema.Tables {
 			err = table2csv(&tbl, conn)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	} else {
-
+		//TODO: dump database
 	}
 }
 
