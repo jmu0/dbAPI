@@ -103,7 +103,7 @@ dbbuild dump
   env/clo: driver, hostname, database, username, password, [schema], [table]
 dbbuild load
   Loads data from .csv file into table
-  env/clo: driver, hostname, database, username, password, [file]`)
+  env/clo: driver, hostname, database, username, password, [file], [clear]`)
 }
 
 func ask(key string) string {

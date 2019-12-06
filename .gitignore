@@ -1,4 +1,3 @@
-getindexes.sql
-getrelationships.sql
-Assortiment.yml
-Relaties.yml
+*.sql
+*.csv
+*.yml

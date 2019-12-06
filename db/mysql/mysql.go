@@ -100,7 +100,7 @@ func skipDb(name string) bool {
 //GetTableNames from database
 func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	tbls := []string{}
-	query := "show tables in " + schemaName
+	query := "show full tables in " + schemaName + " where Table_type='BASE TABLE'"
 	rows, err := c.conn.Query(query)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	}
 	tableName := ""
 	for rows.Next() {
-		rows.Scan(&tableName)
+		rows.Scan(&tableName, nil)
 		tbls = append(tbls, tableName)
 	}
 	return tbls, nil

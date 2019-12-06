@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -153,66 +152,6 @@ func HasTable(schemaName, tableName string, c Conn) bool {
 	return false
 }
 
-//DoubleQuote puts quotes around string, (schema.table) and (col, col)
-//TODO: remove func DoubleQuote(str string) string {
-// 	var res, sep string
-// 	var spl []string
-// 	if strings.Contains(str, ",") {
-// 		sep = ", "
-// 		spl = strings.Split(str, ",")
-// 	} else if strings.Contains(str, ".") {
-// 		sep = "."
-// 		spl = strings.Split(str, ".")
-// 	} else {
-// 		return "\"" + str + "\""
-// 	}
-// 	for _, item := range spl {
-// 		if len(res) > 0 {
-// 			res += sep
-// 		}
-// 		res += "\"" + strings.TrimSpace(item) + "\""
-// 	}
-// 	return res
-// }
-
-//Backtick puts backticks around string, (schema.table) and (col, col)
-//TODO: remove func Backtick(str string) string {
-// 	var res, sep string
-// 	var spl []string
-// 	if strings.Contains(str, ",") {
-// 		sep = ", "
-// 		spl = strings.Split(str, ",")
-// 	} else if strings.Contains(str, ".") {
-// 		sep = "."
-// 		spl = strings.Split(str, ".")
-// 	} else {
-// 		return "`" + str + "`"
-// 	}
-// 	for _, item := range spl {
-// 		if len(res) > 0 {
-// 			res += sep
-// 		}
-// 		res += "`" + strings.TrimSpace(item) + "`"
-// 	}
-// 	return res
-// }
-
-// SortTablesByForeignKey sorts tables for building creat table SQL
-func SortTablesByForeignKey(tbls []Table) {
-	sort.SliceStable(tbls, func(i, j int) bool {
-		var spl []string
-		for _, fk := range tbls[i].ForeignKeys {
-			spl = strings.Split(fk.ToTable, ".")
-			if len(spl) == 2 {
-				if spl[0] == tbls[j].Schema && spl[1] == tbls[j].Name {
-					return false
-				}
-			}
-		}
-		return true
-	})
-}
-
 //SetIndexName sets index name if it is empty or if its the same as Columns
 func SetIndexName(schemaName, tableName string, index *Index) {
 	//force unique index names because differences postgres/mysql causes errors on duplicate names
@@ -230,4 +169,32 @@ func SetForeignKeyName(fk *ForeignKey) {
 		fk.Name = strings.Replace(fk.ToTable, ".", "_", -1) + "_"
 		fk.Name += strings.Replace(strings.Replace(fk.ToCols, ", ", "_", -1), ",", "_", -1) + "_fkey"
 	}
+}
+
+// SortTablesByForeignKey sorts tables for building creat table SQL
+func SortTablesByForeignKey(tbls []Table) {
+	var i, j, k int
+	var spl []string
+	var swapped bool
+	i = 0
+	for i < len(tbls) {
+		swapped = false
+		for _, fk := range tbls[i].ForeignKeys {
+			spl = strings.Split(fk.ToTable, ".")
+			if len(spl) == 2 {
+				for j = i + 1; j < len(tbls); j++ {
+					if spl[0] == tbls[j].Schema && spl[1] == tbls[j].Name {
+						for k = i; k < j; k++ {
+							tbls[k], tbls[k+1] = tbls[k+1], tbls[k]
+						}
+						swapped = true
+					}
+				}
+			}
+		}
+		if !swapped {
+			i++
+		}
+	}
+
 }

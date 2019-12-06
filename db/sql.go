@@ -4,6 +4,8 @@ import (
 	"errors"
 )
 
+//TODO: Quote schema/table/column names
+
 //SelectSQL builds SQL query for selecting record by PrimaryKey
 func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
 	if cols == nil {

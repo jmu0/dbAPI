@@ -23,6 +23,7 @@ func main() {
 	// testGetSQL()
 	// testDb2Yml()
 	//testYml2Db()
+	testSort()
 }
 
 func testPostgres() {
@@ -215,4 +216,32 @@ func testYml2Db() {
 		fmt.Println(sql)
 	}
 	fmt.Println(d.PostSQL())
+}
+func testSort() {
+	c, err := connectTestPostgres()
+	// c, err := connectTestMysql()
+	if err != nil {
+		log.Fatal(err)
+	}
+	tbls := make([]db.Table, 0)
+	rel, _ := db.GetTable("Relaties", "Relaties", c)
+	plt, _ := db.GetTable("Assortiment", "Plant", c)
+	or, _ := db.GetTable("Verkoop", "Orders", c)
+	vor, _ := db.GetTable("Verkoop", "Orderregels", c)
+	mt, _ := db.GetTable("Assortiment", "Maat", c)
+	art, _ := db.GetTable("Assortiment", "Artikel", c)
+	tbls = append(tbls, or, vor, art, mt, plt, rel)
+	for _, t := range tbls {
+		log.Println(t.Schema + "." + t.Name)
+	}
+	log.Println("---sorting---")
+	db.SortTablesByForeignKey(tbls)
+	for _, t := range tbls {
+		log.Println(t.Schema + "." + t.Name)
+	}
+	// log.Println("---sorting---")
+	// sort.Sort(db.TablesByKey(tbls))
+	// for _, t := range tbls {
+	// 	log.Println(t.Schema + "." + t.Name)
+	// }
 }

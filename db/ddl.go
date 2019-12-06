@@ -46,7 +46,6 @@ func GetSchema(schemaName string, conn Conn) (Schema, error) {
 	var tbls []string
 	var err error
 	var tbl Table
-
 	var s = Schema{
 		Name: schemaName,
 	}
