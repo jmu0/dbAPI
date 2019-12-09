@@ -324,7 +324,6 @@ func dbType2gqlType(dbtype string) graphql.Type {
 }
 
 func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn db.Conn) func(params graphql.ResolveParams) (interface{}, error) {
-	//TODO: handle auto-increment primary keys
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		args2cols(params.Args, cols)
 		query, err := conn.InsertSQL(schemaName, tableName, cols)

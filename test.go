@@ -138,8 +138,8 @@ func printdbcols(cols []db.Column) {
 func runAPIServer() {
 	port := ":9999"
 	mx := http.NewServeMux()
-	// c, err := connectTestPostgres()
-	c, err := connectTestMysql()
+	c, err := connectTestPostgres()
+	// c, err := connectTestMysql()
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -268,7 +268,6 @@ func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
 }
 
 func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
-	//TODO: handle not found, now retuns n:0
 	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) > 0 {
 		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
 		if err != nil {
@@ -302,6 +301,10 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
+		if n == 0 {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error: not found: " + rd.SchemaName + "/" + rd.TableName + "/" + strings.Join(rd.PrimaryKeyValues, ":"))
+		}
 		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
@@ -315,7 +318,6 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 
 func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 	if rd.SchemaName != "" && rd.TableName != "" && len(rd.PrimaryKeyValues) != 0 {
-		//TODO: handle not found, now returns n:0
 		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
@@ -340,6 +342,10 @@ func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
+		}
+		if n == 0 {
+			http.Error(w, "Not found", http.StatusNotFound)
+			log.Println("REST error: not found: " + rd.SchemaName + "/" + rd.TableName + "/" + strings.Join(rd.PrimaryKeyValues, ":"))
 		}
 		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
