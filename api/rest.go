@@ -182,7 +182,7 @@ func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
 				log.Println("REST error:", err)
 				return
 			}
-			q, err := db.SelectSQL(rd.SchemaName, rd.TableName, cols, c)
+			q, err := c.SelectSQL(rd.SchemaName, rd.TableName, cols)
 			if err != nil {
 				http.Error(w, "Not found", http.StatusNotFound)
 				log.Println("REST error:", err)
@@ -196,7 +196,7 @@ func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
 			}
 		} else if rd.Query != nil {
 			//perform query
-			q, err := db.QuerySQL(rd.SchemaName, rd.TableName, rd.Query, c)
+			q, err := c.QuerySQL(rd.SchemaName, rd.TableName, rd.Query)
 			if err != nil {
 				http.Error(w, "Not found", http.StatusNotFound)
 				log.Println("REST error:", err)
@@ -210,7 +210,7 @@ func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
 			}
 		} else {
 			//return all rows in table
-			q, err := db.SelectSQL(rd.SchemaName, rd.TableName, nil, c)
+			q, err := c.SelectSQL(rd.SchemaName, rd.TableName, nil)
 			if err != nil {
 				http.Error(w, "Not found", http.StatusNotFound)
 				log.Println("REST error:", err)
@@ -245,13 +245,13 @@ func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
-		query, err := db.InsertSQL(rd.SchemaName, rd.TableName, cols, c)
+		query, err := c.InsertSQL(rd.SchemaName, rd.TableName, cols)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
 		}
-		n, err := db.Execute(c, query)
+		_, n, err := db.Execute(c, query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
@@ -291,13 +291,13 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 				return
 			}
 		}
-		query, err := db.UpdateSQL(rd.SchemaName, rd.TableName, cols, c)
+		query, err := c.UpdateSQL(rd.SchemaName, rd.TableName, cols)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
 		}
-		n, err := db.Execute(c, query)
+		_, n, err := db.Execute(c, query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
@@ -329,14 +329,14 @@ func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
-		q, err := db.DeleteSQL(rd.SchemaName, rd.TableName, cols, c)
+		q, err := c.DeleteSQL(rd.SchemaName, rd.TableName, cols)
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
 			log.Println("REST error:", err)
 			return
 		}
 		// err = ServeQuery(c, q, w)
-		n, err := db.Execute(c, q)
+		_, n, err := db.Execute(c, q)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)

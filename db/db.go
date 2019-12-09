@@ -14,6 +14,11 @@ type Conn interface {
 	GetColumns(schemaName, tableName string) ([]Column, error)
 	GetIndexes(schemaName, tableName string) ([]Index, error)
 	Quote(str string) string
+	InsertSQL(schemaName, tableName string, cols []Column) (string, error)
+	SelectSQL(schemaName, tableName string, cols []Column) (string, error)
+	QuerySQL(schemaName, tableName string, query map[string]string) (string, error)
+	UpdateSQL(schemaName, tableName string, cols []Column) (string, error)
+	DeleteSQL(schemaName, tableName string, cols []Column) (string, error)
 	PreSQL() string  //sql to put at start of ddl query
 	PostSQL() string //sql to put at end of ddl query
 	CreateTableSQL(tbl *Table) (string, error)

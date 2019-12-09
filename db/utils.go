@@ -8,18 +8,22 @@ import (
 )
 
 //Execute executes query without returning results. returns (lastInsertId, rowsAffected, error)
-func Execute(c Conn, query string) (int64, error) {
+func Execute(c Conn, query string) (int64, int64, error) {
 	// fmt.Println(query)
 	res, err := c.GetConnection().Exec(query)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, 0, err
 	}
 
-	return n, nil
+	return id, n, nil
 }
 
 //Query queries the database
