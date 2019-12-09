@@ -296,7 +296,6 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 }
 
 func mapDataType(dbType string) (string, int) {
-	//TODO: date data type
 	var spl = strings.Split(dbType, "(")
 	var tp string
 	var ln int

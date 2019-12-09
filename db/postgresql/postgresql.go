@@ -381,7 +381,6 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 }
 
 func mapDataType(dbType string) string {
-	//TODO: date datatype
 	dataTypes := map[string]string{
 		"smallint":          "int",
 		"integer":           "int",
