@@ -271,10 +271,10 @@ func mapDataType(dbType string) (string, int) {
 			ln = 10
 		}
 		if tp == "text" {
-			ln = 1000
+			ln = 10000
 		}
 		if tp == "longtext" {
-			ln = 10000
+			ln = 100000
 		}
 
 		return t, ln

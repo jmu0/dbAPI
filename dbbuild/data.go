@@ -32,10 +32,12 @@ func handleDump() {
 		}
 	} else if _, ok := s["schema"]; ok {
 		schema, err := db.GetSchema(s["schema"], conn)
+		fmt.Println("Dumping schema: " + schema.Name + "...")
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, tbl := range schema.Tables {
+			fmt.Println("-- table: " + tbl.Name + "...")
 			err = table2csv(&tbl, conn)
 			if err != nil {
 				log.Fatal(err)
@@ -51,7 +53,9 @@ func handleDump() {
 			log.Fatal("GetDatabase:", err)
 		}
 		for _, schema := range d.Schemas {
+			fmt.Println("Dumping schema: " + schema.Name + "...")
 			for _, tbl := range schema.Tables {
+				fmt.Println("-- table: " + tbl.Name + "...")
 				err = table2csv(&tbl, conn)
 				if err != nil {
 					log.Fatal(err)
@@ -69,9 +73,9 @@ func handleLoad() {
 	var i int
 
 	if _, ok := s["file"]; ok {
-		spl := strings.Split(fileName, ".")
+		spl := strings.Split(s["file"], ".")
 		if len(spl) != 4 {
-			log.Fatal("invalid file: ", s["file"])
+			log.Fatal("invalid file: ", s["file"], " len:", len(spl))
 		}
 		tbl, err := db.GetTable(spl[0], spl[1], conn)
 		if err != nil {
@@ -85,7 +89,7 @@ func handleLoad() {
 		}
 		err = csv2table(s["file"], tbl, conn)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("csv2table:", err)
 		}
 	} else {
 		files, err := ioutil.ReadDir("./")
@@ -218,7 +222,6 @@ func table2csv(tbl *db.Table, conn db.Conn) error {
 
 //csv2table loads data from csv file into table
 func csv2table(fileName string, table db.Table, conn db.Conn) error {
-	//TODO: pq: date/time field value out of range: "0000-00-00 00:00:00"
 	var spl, columns []string
 	var query, values string
 	var err error
@@ -256,7 +259,6 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Println("DEBUG CSV:", err)
 			return err
 		}
 		values = ""
@@ -277,7 +279,7 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 		_, err = tx.Exec(query + " values (" + values + ");")
 		if err != nil {
 			tx.Rollback()
-			return err
+			return errors.New(err.Error() + " data: " + values)
 		}
 	}
 	return tx.Commit()
