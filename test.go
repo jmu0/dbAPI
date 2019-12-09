@@ -18,12 +18,13 @@ var listenAddr = ":8282"
 func main() {
 	// testMysql()
 	// testPostgres()
-	// runAPIServer()
-	testGraphql()
+	runAPIServer()
+	// testGraphql()
 	// testGetSQL()
 	// testDb2Yml()
-	//testYml2Db()
+	// testYml2Db()
 	// testSort()
+	// testMultipleInsert()
 }
 
 func testPostgres() {
@@ -244,4 +245,11 @@ func testSort() {
 	// for _, t := range tbls {
 	// 	log.Println(t.Schema + "." + t.Name)
 	// }
+}
+
+func testMultipleInsert() {
+	con, _ := connectTestPostgres()
+	query := "insert into " + con.Quote("Algemeen.Etiketten") + "(\"Aantal\", \"regel1\") values "
+	query += "(1, 'eerste'), (2, 'tweede') returning \"Id\";"
+	log.Println(con.Execute(query))
 }
