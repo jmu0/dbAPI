@@ -87,6 +87,7 @@ func handleLoad() {
 				log.Fatal(err)
 			}
 		}
+		fmt.Print("Loading data from: ", s["file"], "... ")
 		err = csv2table(s["file"], tbl, conn)
 		if err != nil {
 			log.Fatal("csv2table:", err)
@@ -121,7 +122,7 @@ func handleLoad() {
 		}
 		for _, tbl := range tables {
 			fn := tbl.Schema + "." + tbl.Name + ".data.csv"
-			fmt.Println("Loading data from:", fn, "...")
+			fmt.Print("Loading data from: ", fn, "... ")
 			err = csv2table(fn, tbl, conn)
 			if err != nil {
 				log.Fatal(err)
@@ -131,8 +132,10 @@ func handleLoad() {
 }
 
 func deleteTableData(tbl db.Table, conn db.Conn) error {
+	fmt.Print("Clearing ", tbl.Schema+"."+tbl.Name, "... ")
 	query := "delete from " + conn.Quote(tbl.Schema+"."+tbl.Name)
-	_, err := db.Execute(conn, query)
+	_, n, err := conn.Execute(query)
+	fmt.Println(n, "records.")
 	return err
 }
 
@@ -225,6 +228,7 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 	var spl, columns []string
 	var query, values string
 	var err error
+	var counter int
 	spl = strings.Split(fileName, ".")
 	if len(spl) != 4 {
 		return errors.New("Invalid file: " + fileName)
@@ -281,6 +285,8 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 			tx.Rollback()
 			return errors.New(err.Error() + " data: " + values)
 		}
+		counter++
 	}
+	fmt.Println(counter, "records.")
 	return tx.Commit()
 }
