@@ -8,6 +8,8 @@ import (
 type Conn interface {
 	Connect(args map[string]string) error
 	GetConnection() *sql.DB
+	Execute(query string) (int64, int64, error)
+	Query(query string) ([]map[string]interface{}, error)
 	GetSchemaNames() ([]string, error)
 	GetTableNames(schemaName string) ([]string, error)
 	GetRelationships(schemaName string, tableName string) ([]Relationship, error)

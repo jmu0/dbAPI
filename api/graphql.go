@@ -329,7 +329,7 @@ func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn 
 			return nil, err
 		}
 		// log.Println("QUERY:", query)
-		_, n, err := db.Execute(conn, query)
+		_, n, err := conn.Execute(query)
 		if err != nil {
 			return nil, err
 		}
@@ -351,7 +351,7 @@ func resolveMutationUpdate(schemaName, tableName string, cols []db.Column, conn 
 			return nil, err
 		}
 		// log.Println("QUERY:", query)
-		_, n, err := db.Execute(conn, query)
+		_, n, err := conn.Execute(query)
 		if err != nil {
 			return nil, err
 		}
@@ -373,7 +373,7 @@ func resolveMutationDelete(schemaName, tableName string, cols []db.Column, conn 
 			return nil, err
 		}
 		// log.Println("QUERY:", query)
-		_, n, err := db.Execute(conn, query)
+		_, n, err := conn.Execute(query)
 		if err != nil {
 			return nil, err
 		}
@@ -409,7 +409,7 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 		}
 		mutex.RUnlock()
 		// log.Println("QUERY:", query)
-		res.results, err = db.Query(conn, query)
+		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
 		}
@@ -451,7 +451,7 @@ func resolveFuncOneToMany(tbl, cols string, conn db.Conn) func(params graphql.Re
 		}
 		mutex.RUnlock()
 
-		res.results, err = db.Query(conn, query)
+		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
 		}
@@ -493,7 +493,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 			}
 		}
 		mutex.RUnlock()
-		res.results, err = db.Query(conn, query)
+		res.results, err = conn.Query(query)
 		if err != nil {
 			return nil, err
 		}

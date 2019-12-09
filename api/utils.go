@@ -16,7 +16,7 @@ import (
 func ServeQuery(con db.Conn, query string, w http.ResponseWriter) error {
 	var ret interface{}
 	//get query results
-	result, err := db.Query(con, query)
+	result, err := con.Query(query)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return err
@@ -52,9 +52,10 @@ func ServeQuery(con db.Conn, query string, w http.ResponseWriter) error {
 }
 
 //ServeExecuteResult returns result for a query that doesn't return rows
-func ServeExecuteResult(rowsAffected int64, w http.ResponseWriter) error {
+func ServeExecuteResult(lastInsertID, rowsAffected int64, w http.ResponseWriter) error {
 	bytes, err := json.Marshal(map[string]string{
-		"n": strconv.FormatInt(rowsAffected, 10),
+		"id": strconv.FormatInt(lastInsertID, 10),
+		"n":  strconv.FormatInt(rowsAffected, 10),
 	})
 	if err != nil {
 		http.Error(w, "", http.StatusInternalServerError)

@@ -61,7 +61,11 @@ func (conn *Conn) InsertSQL(schemaName, tableName string, cols []db.Column) (str
 	query := "insert into " + conn.Quote(schemaName+"."+tableName) + " "
 	fields := "("
 	strValues := "("
+	var autoinc = false
 	for _, c := range cols {
+		if c.AutoIncrement == true {
+			autoinc = true
+		}
 		if c.Value != nil {
 			if c.AutoIncrement == false {
 				if len(fields) > 1 {
@@ -81,6 +85,20 @@ func (conn *Conn) InsertSQL(schemaName, tableName string, cols []db.Column) (str
 	fields += ")"
 	strValues += ")"
 	query += fields + " values " + strValues
+	if autoinc == true {
+		returning := ""
+		for _, c := range cols {
+			if c.PrimaryKey == true && c.AutoIncrement == true {
+				if len(returning) > 0 {
+					returning += ", "
+				}
+				returning += conn.Quote(c.Name)
+			}
+		}
+		if len(returning) > 0 {
+			query += " returning " + returning
+		}
+	}
 	return query, nil
 }
 

@@ -251,13 +251,13 @@ func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
-		_, n, err := db.Execute(c, query)
+		id, n, err := c.Execute(query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
 		}
-		err = ServeExecuteResult(n, w)
+		err = ServeExecuteResult(id, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
 		}
@@ -297,13 +297,13 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 			log.Println("REST error:", err)
 			return
 		}
-		_, n, err := db.Execute(c, query)
+		_, n, err := c.Execute(query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
 		}
-		err = ServeExecuteResult(n, w)
+		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
 		}
@@ -336,13 +336,13 @@ func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 			return
 		}
 		// err = ServeQuery(c, q, w)
-		_, n, err := db.Execute(c, q)
+		_, n, err := c.Execute(q)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("REST error:", err)
 			return
 		}
-		err = ServeExecuteResult(n, w)
+		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
 		}

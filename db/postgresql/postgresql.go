@@ -56,6 +56,68 @@ func (c *Conn) Connect(args map[string]string) error {
 	return nil
 }
 
+//Execute executes query without returning results. returns (lastInsertId, rowsAffected, error)
+func (c *Conn) Execute(query string) (int64, int64, error) {
+	var id, n int64
+	var err error
+	if strings.ToLower(query[:6]) == "insert" {
+		err = c.GetConnection().QueryRow(query).Scan(&id)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	res, err := c.GetConnection().Exec(query)
+	if err != nil {
+		return 0, 0, err
+	}
+	n, err = res.RowsAffected()
+	if err != nil {
+		return 0, 0, err
+	}
+	return id, n, nil
+}
+
+//Query queries the database
+func (c *Conn) Query(query string) ([]map[string]interface{}, error) {
+	res := make([]map[string]interface{}, 0)
+	rows, err := c.GetConnection().Query(query)
+	if err != nil {
+		return res, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		rows.Close()
+		return res, err
+	}
+	values := make([]sql.RawBytes, len(columns))
+	scanArgs := make([]interface{}, len(values))
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+
+	for rows.Next() {
+		rows.Scan(scanArgs...)
+		v := make(map[string]interface{})
+		var value interface{}
+		for i, col := range values {
+			if col == nil {
+				value = ""
+			} else {
+				value = string(col)
+			}
+			v[columns[i]] = value
+		}
+		res = append(res, v)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return res, err
+	}
+	return res, nil
+}
+
 //GetSchemaNames from database
 func (c *Conn) GetSchemaNames() ([]string, error) {
 	dbs := []string{}
@@ -161,7 +223,7 @@ group by
   name,
   fromTbl,
   toTbl`, schemaName, tableName, schemaName, tableName)
-	res, err := db.Query(c, query)
+	res, err := c.Query(query)
 	if err != nil {
 		return ret, err
 	}
@@ -215,7 +277,7 @@ func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
 			t.relname,
 			i.relname;
 	`, schemaName, tableName)
-	res, err := db.Query(c, query)
+	res, err := c.Query(query)
 	if err != nil {
 		return ret, err
 	}
