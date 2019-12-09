@@ -324,7 +324,7 @@ func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn 
 	//TODO: handle auto-increment primary keys
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		args2cols(params.Args, cols)
-		query, err := db.InsertSQL(schemaName, tableName, cols)
+		query, err := db.InsertSQL(schemaName, tableName, cols, conn)
 		if err != nil {
 			return nil, err
 		}
@@ -346,7 +346,7 @@ func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn 
 func resolveMutationUpdate(schemaName, tableName string, cols []db.Column, conn db.Conn) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		args2cols(params.Args, cols)
-		query, err := db.UpdateSQL(schemaName, tableName, cols)
+		query, err := db.UpdateSQL(schemaName, tableName, cols, conn)
 		if err != nil {
 			return nil, err
 		}
@@ -368,7 +368,7 @@ func resolveMutationUpdate(schemaName, tableName string, cols []db.Column, conn 
 func resolveMutationDelete(schemaName, tableName string, cols []db.Column, conn db.Conn) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		args2cols(params.Args, cols)
-		query, err := db.DeleteSQL(schemaName, tableName, cols)
+		query, err := db.DeleteSQL(schemaName, tableName, cols, conn)
 		if err != nil {
 			return nil, err
 		}

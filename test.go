@@ -18,12 +18,12 @@ var listenAddr = ":8282"
 func main() {
 	// testMysql()
 	// testPostgres()
-	// runAPIServer()
+	runAPIServer()
 	// testGraphql()
 	// testGetSQL()
 	// testDb2Yml()
 	//testYml2Db()
-	testSort()
+	// testSort()
 }
 
 func testPostgres() {

@@ -4,15 +4,13 @@ import (
 	"errors"
 )
 
-//TODO: Quote schema/table/column names
-
 //SelectSQL builds SQL query for selecting record by PrimaryKey
-func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
+func SelectSQL(schemaName, tableName string, cols []Column, conn Conn) (string, error) {
 	if cols == nil {
-		return "select * from " + schemaName + "." + tableName, nil
+		return "select * from " + conn.Quote(schemaName+"."+tableName), nil
 	}
-	q := "select * from " + schemaName + "." + tableName + " where "
-	where, err := primaryKeyWhereSQL(cols)
+	q := "select * from " + conn.Quote(schemaName+"."+tableName) + " where "
+	where, err := primaryKeyWhereSQL(cols, conn)
 	if err != nil {
 		return "", errors.New("Could not build query: " + err.Error())
 	}
@@ -21,32 +19,32 @@ func SelectSQL(schemaName, tableName string, cols []Column) (string, error) {
 }
 
 //QuerySQL builds SQL query, construct WHERE statement from ESCAPED map[string]string
-func QuerySQL(schemaName, tableName string, query map[string]string) (string, error) {
+func QuerySQL(schemaName, tableName string, query map[string]string, conn Conn) (string, error) {
 	if query == nil {
 		return "", errors.New("No query")
 	}
-	var q = "select * from " + schemaName + "." + tableName + " where "
+	var q = "select * from " + conn.Quote(schemaName+"."+tableName) + " where "
 	var where = ""
 	for k, v := range query {
 		if len(where) > 0 {
 			where += ", and "
 		}
 		if v[:2] == ">=" {
-			where += k + " >= '" + v[2:] + "' "
+			where += conn.Quote(k) + " >= '" + v[2:] + "' "
 		} else if v[:2] == "<=" {
-			where += k + " <= '" + v[2:] + "' "
+			where += conn.Quote(k) + " <= '" + v[2:] + "' "
 		} else if v[:1] == ">" {
-			where += k + " > '" + v[1:] + "' "
+			where += conn.Quote(k) + " > '" + v[1:] + "' "
 		} else if v[:1] == "<" {
-			where += k + " < '" + v[1:] + "' "
+			where += conn.Quote(k) + " < '" + v[1:] + "' "
 		} else if v[:1] == "*" && string(v[len(v)-1]) == "*" {
-			where += k + " like '%" + v[1:len(v)-1] + "%' "
+			where += conn.Quote(k) + " like '%" + v[1:len(v)-1] + "%' "
 		} else if v[:1] == "*" {
-			where += k + " like '%" + v[1:] + "' "
+			where += conn.Quote(k) + " like '%" + v[1:] + "' "
 		} else if string(v[len(v)-1]) == "*" {
-			where += k + " like '" + v[:len(v)-1] + "%' "
+			where += conn.Quote(k) + " like '" + v[:len(v)-1] + "%' "
 		} else {
-			where += k + " = '" + v + "' "
+			where += conn.Quote(k) + " = '" + v + "' "
 		}
 	}
 	if len(where) == 0 {
@@ -57,8 +55,8 @@ func QuerySQL(schemaName, tableName string, query map[string]string) (string, er
 }
 
 //InsertSQL builds SQL query and parameters for inserting data
-func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
-	query := "insert into " + schemaName + "." + tableName + " "
+func InsertSQL(schemaName, tableName string, cols []Column, conn Conn) (string, error) {
+	query := "insert into " + conn.Quote(schemaName+"."+tableName) + " "
 	fields := "("
 	strValues := "("
 	for _, c := range cols {
@@ -67,7 +65,7 @@ func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
 				if len(fields) > 1 {
 					fields += ", "
 				}
-				fields += c.Name
+				fields += conn.Quote(c.Name)
 				if len(strValues) > 1 {
 					strValues += ", "
 				}
@@ -85,8 +83,8 @@ func InsertSQL(schemaName, tableName string, cols []Column) (string, error) {
 }
 
 //UpdateSQL builds SQL query and parameters for updating data
-func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
-	query := "update " + schemaName + "." + tableName + " set "
+func UpdateSQL(schemaName, tableName string, cols []Column, conn Conn) (string, error) {
+	query := "update " + conn.Quote(schemaName+"."+tableName) + " set "
 	fields := ""
 	for _, c := range cols {
 		if c.Value != nil {
@@ -94,7 +92,7 @@ func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
 				if len(fields) > 0 {
 					fields += ", "
 				}
-				fields += c.Name + "=" + Interface2string(c.Value, true)
+				fields += conn.Quote(c.Name) + "=" + Interface2string(c.Value, true)
 			}
 		}
 	}
@@ -102,7 +100,7 @@ func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
 		return "", errors.New("No columns contains a value")
 	}
 	query += fields + " where "
-	where, err := primaryKeyWhereSQL(cols)
+	where, err := primaryKeyWhereSQL(cols, conn)
 	if err != nil {
 		return "", err
 	}
@@ -111,9 +109,9 @@ func UpdateSQL(schemaName, tableName string, cols []Column) (string, error) {
 }
 
 //DeleteSQL builds SQL query for deleting data
-func DeleteSQL(schemaName, tableName string, cols []Column) (string, error) {
-	query := "delete from " + schemaName + "." + tableName + " where "
-	where, err := primaryKeyWhereSQL(cols)
+func DeleteSQL(schemaName, tableName string, cols []Column, conn Conn) (string, error) {
+	query := "delete from " + conn.Quote(schemaName+"."+tableName) + " where "
+	where, err := primaryKeyWhereSQL(cols, conn)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +120,7 @@ func DeleteSQL(schemaName, tableName string, cols []Column) (string, error) {
 }
 
 //primaryKeyWhereSQL returns where part (without 'where') of query
-func primaryKeyWhereSQL(cols []Column) (string, error) {
+func primaryKeyWhereSQL(cols []Column, conn Conn) (string, error) {
 	var ret string
 	for _, c := range cols {
 		if c.PrimaryKey == true {
@@ -132,7 +130,7 @@ func primaryKeyWhereSQL(cols []Column) (string, error) {
 			if len(ret) > 0 {
 				ret += " and"
 			}
-			ret += " " + c.Name + " = " + Interface2string(c.Value, true)
+			ret += " " + conn.Quote(c.Name) + " = " + Interface2string(c.Value, true)
 		}
 	}
 	if len(ret) == 0 {
