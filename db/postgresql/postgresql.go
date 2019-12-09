@@ -58,6 +58,7 @@ func (c *Conn) Connect(args map[string]string) error {
 
 //Execute executes query without returning results. returns (lastInsertId, rowsAffected, error)
 func (c *Conn) Execute(query string) (int64, int64, error) {
+	//TODO: handle inserting multiple rows with one query
 	var id, n int64
 	var err error
 	if strings.ToLower(query[:6]) == "insert" {
@@ -65,6 +66,7 @@ func (c *Conn) Execute(query string) (int64, int64, error) {
 		if err != nil {
 			return 0, 0, err
 		}
+		return id, 1, nil
 	}
 	res, err := c.GetConnection().Exec(query)
 	if err != nil {

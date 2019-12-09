@@ -193,6 +193,9 @@ var mutationResultType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "MutationResult",
 		Fields: graphql.Fields{
+			"last_insert_id": &graphql.Field{
+				Type: graphql.Int,
+			},
 			"rows_affected": &graphql.Field{
 				Type: graphql.Int,
 			},
@@ -329,7 +332,7 @@ func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn 
 			return nil, err
 		}
 		// log.Println("QUERY:", query)
-		_, n, err := conn.Execute(query)
+		id, n, err := conn.Execute(query)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +341,8 @@ func resolveMutationCreate(schemaName, tableName string, cols []db.Column, conn 
 		}
 		deleteFromQueryCache(schemaName, tableName)
 		return map[string]int64{
-			"rows_affected": n,
+			"last_insert_id": id,
+			"rows_affected":  n,
 		}, nil
 	}
 }
@@ -360,7 +364,8 @@ func resolveMutationUpdate(schemaName, tableName string, cols []db.Column, conn 
 		}
 		deleteFromQueryCache(schemaName, tableName)
 		return map[string]int64{
-			"rows_affected": n,
+			"last_insert_id": -1,
+			"rows_affected":  n,
 		}, nil
 	}
 }
@@ -382,7 +387,8 @@ func resolveMutationDelete(schemaName, tableName string, cols []db.Column, conn 
 		}
 		deleteFromQueryCache(schemaName, tableName)
 		return map[string]int64{
-			"rows_affected": n,
+			"last_insert_id": -1,
+			"rows_affected":  n,
 		}, nil
 	}
 }

@@ -18,8 +18,8 @@ var listenAddr = ":8282"
 func main() {
 	// testMysql()
 	// testPostgres()
-	runAPIServer()
-	// testGraphql()
+	// runAPIServer()
+	testGraphql()
 	// testGetSQL()
 	// testDb2Yml()
 	//testYml2Db()
@@ -98,8 +98,8 @@ func testGraphql() {
 	mx.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Test!"))
 	})
-	d, err := connectTestPostgres()
-	// d, err := connectTestMysql()
+	// d, err := connectTestPostgres()
+	d, err := connectTestMysql()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -137,8 +137,8 @@ func printdbcols(cols []db.Column) {
 func runAPIServer() {
 	port := ":9999"
 	mx := http.NewServeMux()
-	c, err := connectTestPostgres()
-	// c, err := connectTestMysql()
+	// c, err := connectTestPostgres()
+	c, err := connectTestMysql()
 	if err != nil {
 		log.Fatal(err)
 	}

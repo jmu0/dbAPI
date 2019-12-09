@@ -231,7 +231,6 @@ func handleGet(c db.Conn, rd requestData, w http.ResponseWriter) {
 }
 
 func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
-	//TODO: handle auto-increment primary keys
 	if rd.SchemaName != "" && rd.TableName != "" {
 		cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
 		if err != nil {
