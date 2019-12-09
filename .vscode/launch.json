@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}",
+            "program": "/home/jos/go/src/github.com/jmu0/dbAPI/test.go",
             "env": {},
             "args": []
         }

@@ -2,90 +2,84 @@ package mysql
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
-	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	//used for connecting to datbase
+	"github.com/jmu0/dbAPI/db"
+	//connect to mysql
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmu0/settings"
 )
 
-//TODO create interface, handle different db's (mysql, postgres)
-
-//returns connection string for database driver
-func makeDSN(server, user, password string) string {
-	var port string
-	port = "3306"
-	return user + ":" + password + "@tcp(" + server + ":" + port + ")/"
+//Conn mysql connection implements db.Conn
+type Conn struct {
+	conn *sql.DB
 }
 
-//Connect connect to database
-func Connect(arg ...string) (*sql.DB, error) {
-	//TODO change path
-	var path string
-	//TODO save login somewhere else
-	path = "orm.conf"
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		path = "/etc/orm.conf"
+var schemaCache map[string][]db.Column
+
+//GetConnection returns connection *sql.DB
+func (c *Conn) GetConnection() *sql.DB {
+	return c.conn
+}
+
+//Connect to database
+func (c *Conn) Connect(args map[string]string) error {
+	if _, ok := args["hostname"]; !ok {
+		return errors.New("No hostname in args")
 	}
-	set := settings.Settings{File: path}
-	database, err := set.Get("database")
+	if _, ok := args["username"]; !ok {
+		return errors.New("No username in args")
+	}
+	if _, ok := args["password"]; !ok {
+		return errors.New("No password in args")
+	}
+	if _, ok := args["port"]; !ok {
+		args["port"] = "3306"
+	}
+	dsn := args["username"] + ":" + args["password"] + "@tcp(" + args["hostname"] + ":" + args["port"] + ")/"
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Database server: ")
-		fmt.Scanln(&database)
+		return err
 	}
-	usr, err := set.Get("user")
+	err = db.Ping()
 	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Username: ")
-		fmt.Scanln(&usr)
+		return err
 	}
-	pwd, err := set.Get("password")
-	if err != nil {
-		fmt.Println(err)
-		fmt.Printf("Password: ")
-		fmt.Scanln(&pwd)
-	}
-	db, err := sql.Open("mysql", makeDSN(database, usr, pwd))
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(0)
 	d, _ := time.ParseDuration("1 second")
 	db.SetConnMaxLifetime(d)
-	if err != nil {
-		return db, err
-	}
-	return db, nil
+	c.conn = db
+	return nil
 }
 
-//DoQuery connects, queries and returns results
-func DoQuery(query string) ([]map[string]interface{}, error) {
-	var err error
-	db, err := Connect()
-	ret := make([]map[string]interface{}, 0)
+//Execute executes query without returning results. returns (lastInsertId, rowsAffected, error)
+func (c *Conn) Execute(query string) (int64, int64, error) {
+	// fmt.Println(query)
+	res, err := c.GetConnection().Exec(query)
 	if err != nil {
-		return ret, err
+		return 0, 0, err
 	}
-	defer db.Close()
-	ret, err = Query(db, query)
+	n, err := res.RowsAffected()
 	if err != nil {
-		return ret, err
+		return 0, 0, err
 	}
-	return ret, nil
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return id, n, nil
 }
 
-//Query Get slice of map[string]interface{} from database
-func Query(db *sql.DB, query string) ([]map[string]interface{}, error) {
+//Query queries the database
+func (c *Conn) Query(query string) ([]map[string]interface{}, error) {
 	res := make([]map[string]interface{}, 0)
-	rows, err := db.Query(query)
+	rows, err := c.GetConnection().Query(query)
 	if err != nil {
 		return res, err
 	}
@@ -120,280 +114,29 @@ func Query(db *sql.DB, query string) ([]map[string]interface{}, error) {
 		rows.Close()
 		return res, err
 	}
-	//DEBUG:log.Println(res)
 	return res, nil
 }
 
-//ServeQuery does query and writes json to responseWriter
-func ServeQuery(query string, w http.ResponseWriter) error {
-	result, err := DoQuery(query)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return err
-	}
-	json, err := json.Marshal(result)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return err
-	}
-	// log.Println("GET in bestelling voor", lokatie)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write(json)
-	return nil
-}
-
-func getColsWithValues(db *sql.DB, dbName string, tblName string, r *http.Request) []Column {
-	cols := GetColumns(db, dbName, tblName)
-	data, err := getRequestData(r)
-	if err != nil {
-		log.Println("REST: ERROR: POST:", dbName, tblName, err)
-	}
-
-	//set column values
-	values2columns(&cols, data)
-	return cols
-}
-
-func values2columns(cols *[]Column, values map[string]interface{}) {
-	for key, value := range values {
-		index := findColIndex(key, *cols)
-		if index > -1 {
-			(*cols)[index].Value = Escape(value.(string))
-		}
-	}
-}
-
-func cols2json(table string, cols []Column) ([]byte, error) {
-	var ret map[string]interface{}
-	ret = make(map[string]interface{})
-	ret["type"] = table
-	for _, col := range cols {
-		ret[col.Field] = col.Value
-	}
-	json, err := json.Marshal(ret)
-	if err != nil {
-		return []byte(""), err
-	}
-	return json, nil
-}
-
-func findColIndex(field string, cols []Column) int {
-	for index, col := range cols {
-		if strings.ToLower(col.Field) == strings.ToLower(field) {
-			return index
-		}
-	}
-	return -1
-}
-
-func writeQueryResults(db *sql.DB, q string, w http.ResponseWriter) {
-	var ret interface{}
-	res, err := Query(db, q)
-	// fmt.Println("REST: DEBUG: writeQueryResults:", q)
-	if err != nil {
-		http.Error(w, "No results found", http.StatusNotFound)
-		return
-	}
-	if len(res) == 1 {
-		ret = res[0]
-	} else {
-		ret = res
-	}
-	bytes, err := json.Marshal(ret)
-	if err != nil {
-		fmt.Println("HandleRest: error encoding json:", err)
-		http.Error(w, "No results found", http.StatusNotFound)
-		return
-	}
-	//drop password fields
-	var pwReg = ",\"?([P,p]ass[W,w]o?r?d|[W,w]acht[W,w]o?o?r?d?)\"?:\"(.*?)\""
-	passwdReg := regexp.MustCompile(pwReg)
-	bytes = []byte(passwdReg.ReplaceAllString(string(bytes), ""))
-	zip, err := compress(bytes)
-	if err == nil {
-		// log.Println("REST: DEBUG: compressed result")
-		bytes = zip
-		w.Header().Set("Content-Encoding", "gzip")
-	} else {
-		log.Println("Error compressing result:", err)
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write(bytes)
-}
-
-//getRequestData get data from post request
-func getRequestData(req *http.Request) (map[string]interface{}, error) {
-	err := req.ParseForm()
-	if err != nil {
-		return make(map[string]interface{}), err
-	}
-	res := make(map[string]interface{})
-	for k, v := range req.Form {
-		res[k] = strings.Join(v, "")
-	}
-	return res, nil
-}
-
-//DbObject interface
-type DbObject interface {
-	//TODO move to different file
-	GetDbInfo() (dbName string, tblName string)
-	GetColumns() []Column
-	Get(key string) (Column, error)
-	Set(key string, value interface{}) error
-	Save() (Nr int, err error)
-	Delete() (Nr int, err error)
-}
-
-//Escape string to prevent common sql injection attacks
-func Escape(str string) string {
-	//TODO move to different file
-	// ", ', 0=0
-	str = strings.Replace(str, "\"", "\\\"", -1)
-	str = strings.Replace(str, "''", "'", -1)
-	str = strings.Replace(str, "'", "''", -1)
-
-	// \x00, \n, \r, \ and \x1a"
-	str = strings.Replace(str, "\x00", "", -1)
-	str = strings.Replace(str, "\n", "", -1)
-	str = strings.Replace(str, "\r", "", -1)
-	str = strings.Replace(str, "\x1a", "", -1)
-
-	//multiline attack
-	str = strings.Replace(str, ";", " ", -1)
-
-	//comments attack
-	str = strings.Replace(str, "--", "", -1)
-	str = strings.Replace(str, "#", "", -1)
-	str = strings.Replace(str, "/*", "", -1)
-	str = strings.Replace(str, "*/", "", -1)
-	return str
-}
-
-//save can be used by HandleREST and DbObject
-func save(dbName string, tblName string, cols []Column) (int, int, error) {
-	var err error
-	db, err := Connect()
-	if err != nil {
-		return -1, -1, err
-	}
-	defer db.Close()
-
-	query := "insert into " + dbName + "." + tblName + " "
-	fields := "("
-	strValues := "("
-	insValues := make([]interface{}, 0)
-	updValues := make([]interface{}, 0)
-	strUpdate := ""
-	for _, c := range cols {
-		//log.Println("DEBUG:", c)
-		if c.Value != nil {
-			if (GetType(c.Type) == "int" && c.Value == "") == false { //skip auto_increment column
-				if len(fields) > 1 {
-					fields += ", "
-				}
-				fields += c.Field
-				if len(strValues) > 1 {
-					strValues += ", "
-				}
-				strValues += "?"
-				insValues = append(insValues, c.Value)
-				if len(strUpdate) > 0 {
-					strUpdate += ", "
-				}
-				strUpdate += c.Field + "=?"
-				updValues = append(updValues, c.Value)
-			}
-		}
-	}
-	fields += ")"
-	strValues += ")"
-	query += fields + " values " + strValues
-	query += " on duplicate key update " + strUpdate
-	// log.Println("DEBUG SAVE query:", query)
-	insValues = append(insValues, updValues...)
-	// log.Println("DEB:UG: query:", query, " insValues:", insValues)
-	qr, err := db.Exec(query, insValues...)
-	// log.Println("DEBUG:qr", qr, " err:", err)
-	// stmt, err := db.Prepare(query)
-	// if err != nil {
-	// 	return -1, -1, err
-	// }
-	// qr, err := stmt.Exec(insValues...)
-	if err != nil {
-		return -1, -1, err
-	}
-
-	id, err := qr.LastInsertId()
-	if err != nil {
-		id = -1
-	}
-	n, err := qr.RowsAffected()
-	if err != nil {
-		n = -1
-	}
-	// fmt.Println("REST: DEBUG: save result n:", n, "id:", id)
-	return int(n), int(id), nil
-}
-
-//delete can be used by HandleREST and DbObject
-func delete(dbName string, tblName string, cols []Column) (int, error) {
-	db, err := Connect()
-	if err != nil {
-		return 1, err
-	}
-	defer db.Close()
-	query := "delete from " + dbName + "." + tblName + " where"
-	where, err := StrPrimaryKeyWhereSQL(cols)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	query += where
-	res, err := db.Exec(query)
-	if err != nil {
-		return 1, err
-	}
-	nrrows, _ := res.RowsAffected()
-	if nrrows < 1 {
-		return 1, errors.New("No rows deleted")
-	}
-	return 0, nil
-}
-
-//return string for query for value
-func valueString(val interface{}) string {
-	var value string
-	if val == nil {
-		return ""
-	}
-	switch t := val.(type) {
-	case string:
-		value += "\"" + Escape(val.(string)) + "\""
-	case int, int32, int64:
-		value += strconv.Itoa(val.(int))
-	default:
-		fmt.Println(t)
-		value += "\"" + Escape(val.(string)) + "\""
-	}
-	return value
-}
-
-//GetDatabaseNames Get database names from server
-func GetDatabaseNames(db *sql.DB) []string {
+//GetSchemaNames from database
+func (c *Conn) GetSchemaNames() ([]string, error) {
 	dbs := []string{}
 	query := "show databases"
-	rows, err := db.Query(query)
+	rows, err := c.conn.Query(query)
 	defer rows.Close()
-	if err == nil && rows != nil {
-		dbName := ""
-		for rows.Next() {
-			rows.Scan(&dbName)
-			if !skipDb(dbName) {
-				dbs = append(dbs, dbName)
-			}
+	if err != nil {
+		return dbs, err
+	}
+	if rows == nil {
+		return dbs, errors.New("No databases found")
+	}
+	dbName := ""
+	for rows.Next() {
+		rows.Scan(&dbName)
+		if !skipDb(dbName) {
+			dbs = append(dbs, dbName)
 		}
 	}
-	return dbs
+	return dbs, nil
 }
 
 //don't show system databases
@@ -414,81 +157,56 @@ func skipDb(name string) bool {
 	return false
 }
 
-//GetTableNames Get table names from database
-func GetTableNames(db *sql.DB, dbName string) []string {
+//GetTableNames from database
+func (c *Conn) GetTableNames(schemaName string) ([]string, error) {
 	tbls := []string{}
-	query := "show tables in " + dbName
-	rows, err := db.Query(query)
+	query := "show full tables in " + schemaName + " where Table_type='BASE TABLE'"
+	rows, err := c.conn.Query(query)
 	if err != nil {
-		return tbls
-	} else if rows != nil {
-		tableName := ""
-		for rows.Next() {
-			rows.Scan(&tableName)
-			tbls = append(tbls, tableName)
-		}
+		return nil, err
 	}
 	defer rows.Close()
-	return tbls
-}
-
-//GetColumns get list of columns from database table
-func GetColumns(db *sql.DB, dbName string, tableName string) []Column {
-	cols := []Column{}
-	var col Column
-	query := "show columns from " + dbName + "." + tableName
-	//TODO: waarom zie ik geen auto_increment in kolom Extra??
-	rows, err := db.Query(query)
-	defer rows.Close()
-	if err == nil && rows != nil {
-		for rows.Next() {
-			col = Column{}
-			rows.Scan(&col.Field, &col.Type, &col.Null, &col.Key, &col.Default, &col.Extra)
-			cols = append(cols, col)
-		}
+	if rows == nil {
+		return nil, errors.New("No tables found in " + schemaName)
 	}
-	return cols
+	tableName := ""
+	for rows.Next() {
+		rows.Scan(&tableName, nil)
+		tbls = append(tbls, tableName)
+	}
+	return tbls, nil
 }
 
-//Column Structure to represent table column
-type Column struct {
-	Field   string
-	Type    string
-	Null    string
-	Key     string
-	Default string
-	Extra   string
-	Value   interface{}
-}
-
-//GetRelationships gets relationships for table
-func GetRelationships(db *sql.DB, dbName string, tableName string) ([]Relationship, error) {
-	var ret []Relationship
-	var query = `select concat(table_schema, ".", table_name) as fromTbl, 
+//GetRelationships from database table
+func (c *Conn) GetRelationships(schemaName string, tableName string) ([]db.Relationship, error) {
+	var ret []db.Relationship
+	var rel db.Relationship
+	var query = `select constraint_name as name, concat(table_schema, ".", table_name) as fromTbl, 
 			group_concat(column_name separator ", ") as fromCols,
 			concat(referenced_table_schema, ".", referenced_table_name) as toTbl, 
 			group_concat(referenced_column_name separator ", ") as toCols
 			from (select constraint_name, table_schema,table_name,column_name,referenced_table_schema,referenced_table_name, 
 			referenced_column_name from information_schema.key_column_usage
-			where (referenced_table_schema="` + dbName + `" and referenced_table_name="` + tableName + `") 
-			or (table_schema="` + dbName + `" and table_name="` + tableName + `")
+			where (referenced_table_schema="` + schemaName + `" and referenced_table_name="` + tableName + `") 
+			or (table_schema="` + schemaName + `" and table_name="` + tableName + `")
 			and constraint_name <> "PRIMARY"
-			) as relations group by fromTbl, toTbl`
-	// log.Println("DEBUG:", query)
-	res, err := Query(db, query)
+			) as relations group by constraint_name, fromTbl, toTbl`
+	// log.Fatal(query)
+	res, err := c.Query(query)
 	if err != nil {
 		return ret, err
 	}
 	for _, r := range res {
-		var rel = Relationship{
+		rel = db.Relationship{
+			Name:      r["name"].(string),
 			FromTable: r["fromTbl"].(string),
 			FromCols:  r["fromCols"].(string),
 			ToTable:   r["toTbl"].(string),
 			ToCols:    r["toCols"].(string),
 		}
-		if rel.FromTable == dbName+"."+tableName {
+		if rel.FromTable == schemaName+"."+tableName {
 			rel.Cardinality = "many-to-one"
-		} else if rel.ToTable == dbName+"."+tableName {
+		} else if rel.ToTable == schemaName+"."+tableName {
 			rel.Cardinality = "one-to-many"
 		}
 		ret = append(ret, rel)
@@ -496,68 +214,152 @@ func GetRelationships(db *sql.DB, dbName string, tableName string) ([]Relationsh
 	return ret, nil
 }
 
-//Relationship between tables
-type Relationship struct {
-	FromTable   string
-	FromCols    string
-	ToTable     string
-	ToCols      string
-	Cardinality string
-}
-
-//GetType find out go data type for database data type
-func GetType(t string) string {
-	//TODO: more datatypes
-	var dataTypes map[string]string
-	dataTypes = map[string]string{
-		"varchar":  "string",
-		"tinyint":  "int",
-		"smallint": "int",
-		"datetime": "string",
-		"int":      "int",
+//GetIndexes get indexes for table
+func (c *Conn) GetIndexes(schemaName, tableName string) ([]db.Index, error) {
+	var ret = []db.Index{}
+	var ind db.Index
+	query := fmt.Sprintf(`
+	select 
+		index_name as 'index',
+		group_concat(column_name order by seq_in_index separator ', ') as columns
+	from information_schema.statistics
+	group by 
+		table_schema,
+		table_name,
+		index_name
+	having
+		table_schema = '%s'
+		and table_name = '%s'
+		and index_name <> 'PRIMARY'
+	`, schemaName, tableName)
+	// log.Fatal(query)
+	res, err := c.Query(query)
+	if err != nil {
+		return ret, err
 	}
-	t = strings.Split(t, "(")[0]
-	if tp, ok := dataTypes[t]; ok {
-		return tp
-	}
-	return "string"
-}
-
-func setAutoIncColumn(id int, cols []Column) []Column {
-	//fmt.Println("DEBUG:setAutoIncColumn")
-	for index, col := range cols {
-		if strings.Contains(col.Type, "int") && col.Key == "PRI" {
-			//fmt.Println("DEBUG:found", col.Field)
-			cols[index].Value = id
+	for _, r := range res {
+		ind = db.Index{
+			Name:    r["index"].(string),
+			Columns: r["columns"].(string),
 		}
-	}
-	return cols
-}
-
-//StrPrimaryKeyWhereSQL returns where part of query
-func StrPrimaryKeyWhereSQL(cols []Column) (string, error) {
-	var ret string
-	for _, c := range cols {
-		if c.Key == "PRI" {
-			if len(ret) > 0 {
-				ret += " and"
-			}
-			ret += " " + c.Field + " = " + valueString(c.Value)
-		}
-	}
-	if len(ret) == 0 {
-		return "", errors.New("Primary key not found (StrPrimaryKeyWhereSQL")
+		ret = append(ret, ind)
 	}
 	return ret, nil
 }
 
-//PrimaryKeyCols filters primary key columns from []Column
-func PrimaryKeyCols(cols []Column) []Column {
-	var ret []Column
-	for _, c := range cols {
-		if c.Key == "PRI" {
-			ret = append(ret, c)
+//GetColumns from database table
+func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
+	if schemaCache == nil {
+		schemaCache = make(map[string][]db.Column)
+	}
+	if _, ok := schemaCache[schemaName+"."+tableName]; ok {
+		return schemaCache[schemaName+"."+tableName], nil
+	}
+	cols := []db.Column{}
+	var col db.Column
+	var field, tp, null, key, def, extra interface{}
+	query := "show columns from " + schemaName + "." + tableName
+	rows, err := c.conn.Query(query)
+	if err != nil {
+		return cols, err
+	}
+	defer rows.Close()
+	if err == nil && rows != nil {
+		for rows.Next() {
+			rows.Scan(&field, &tp, &null, &key, &def, &extra)
+			col = db.Column{
+				Name:         db.Interface2string(field, false),
+				DefaultValue: db.Interface2string(def, false),
+			}
+			if db.Interface2string(key, false) == "PRI" {
+				col.PrimaryKey = true
+			} else {
+				col.PrimaryKey = false
+			}
+			if db.Interface2string(null, false) == "YES" {
+				col.Nullable = true
+			} else {
+				col.Nullable = false
+			}
+			if db.Interface2string(extra, false) == "auto_increment" {
+				col.AutoIncrement = true
+			} else {
+				col.AutoIncrement = false
+			}
+			col.Type, col.Length = mapDataType(db.Interface2string(tp, false))
+			cols = append(cols, col)
 		}
 	}
-	return ret
+
+	schemaCache[schemaName+"."+tableName] = cols
+	return cols, nil
+}
+
+func mapDataType(dbType string) (string, int) {
+	var spl = strings.Split(dbType, "(")
+	var tp string
+	var ln int
+	var err error
+	if len(spl) > 1 {
+		tp = spl[0]
+		ln, err = strconv.Atoi(spl[1][:len(spl[1])-1])
+		if err != nil {
+			ln = 0
+		}
+	} else {
+		tp = dbType
+	}
+	dataTypes := map[string]string{
+		"varchar":   "string",
+		"text":      "string",
+		"longtext":  "string",
+		"char":      "string",
+		"int":       "int",
+		"tinyint":   "int",
+		"smallint":  "int",
+		"bigint":    "int",
+		"date":      "dbdate",
+		"datetime":  "dbdate",
+		"timestamp": "dbdate",
+		"float":     "float",
+		"double":    "float",
+		"decimal":   "float",
+	}
+	if t, ok := dataTypes[tp]; ok {
+		if t == "dbdate" {
+			ln = 10
+		}
+		if tp == "text" {
+			ln = 10000
+		}
+		if tp == "longtext" {
+			ln = 100000
+		}
+
+		return t, ln
+	}
+	log.Println("WARNING: unmapped datatype: ", tp)
+	return "unknown:" + tp, ln
+}
+
+//Quote puts quotes around string for in SQL
+func (c *Conn) Quote(str string) string {
+	var res, sep string
+	var spl []string
+	if strings.Contains(str, ",") {
+		sep = ", "
+		spl = strings.Split(str, ",")
+	} else if strings.Contains(str, ".") {
+		sep = "."
+		spl = strings.Split(str, ".")
+	} else {
+		return "`" + str + "`"
+	}
+	for _, item := range spl {
+		if len(res) > 0 {
+			res += sep
+		}
+		res += "`" + strings.TrimSpace(item) + "`"
+	}
+	return res
 }

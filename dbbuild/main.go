@@ -2,72 +2,127 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 
+	"github.com/jmu0/dbAPI/db"
 	"github.com/jmu0/dbAPI/db/mysql"
+	"github.com/jmu0/dbAPI/db/postgresql"
+	"github.com/jmu0/settings"
 )
 
 var conn *sql.DB
 var err error
-var db, table string
-var tables, dbs []string
-var cols []mysql.Column
+var s map[string]string
+var cols []db.Column
 
 func main() {
+	s = make(map[string]string)
+	settings.Load("dbbuild.conf", &s)
 	if len(os.Args) == 1 {
-		fmt.Println("invalid args")
+		printHelp()
 		return
 	}
 	switch os.Args[1] {
 	case "html":
-		var html = cols2form(getCols())
-		fmt.Print("Bestandsnaam (" + strings.ToLower(table) + ".html)?")
-		var filename string
-		fmt.Scanln(&filename)
-		if len(filename) == 0 {
-			filename = strings.ToLower(table) + ".html"
-		}
-		err := ioutil.WriteFile(filename, []byte(html), 0770)
-		if err != nil {
-			fmt.Println("ERROR:", err)
-		}
+		handleHTML()
 	case "template":
-		var html = cols2template(getCols())
-		fmt.Print("Bestandsnaam (" + strings.ToLower(table) + ".html)?")
-		var filename string
-		fmt.Scanln(&filename)
-		if len(filename) == 0 {
-			filename = strings.ToLower(table) + ".html"
-		}
-		err := ioutil.WriteFile(filename, []byte(html), 0770)
-		if err != nil {
-			fmt.Println("ERROR:", err)
-		}
+		handleTemplate()
+	case "yaml":
+		handleYaml()
+	case "sql":
+		handleSQL()
+	case "dump":
+		handleDump()
+	case "load":
+		handleLoad()
 	default:
-		fmt.Println("invalid args")
+		printHelp()
+
 	}
 }
 
-func getCols() []mysql.Column {
-	conn, err = mysql.Connect()
+func connect() db.Conn {
+	var err error
+	var tp, host, user, pwd string
+	tp = ask("driver")
+	host = ask("hostname")
+	user = ask("username")
+	pwd = ask("password")
+	if tp == "mysql" {
+		c := mysql.Conn{}
+		err = c.Connect(map[string]string{
+			"hostname": host,
+			"username": user,
+			"password": pwd,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return &c
+	} else if tp == "postgresql" {
+		var database string
+		database = ask("database")
+		c := postgresql.Conn{}
+		err = c.Connect(map[string]string{
+			"hostname": host,
+			"username": user,
+			"password": pwd,
+			"database": database,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return &c
+	} else {
+		fmt.Println("invalid driver: " + tp)
+		os.Exit(0)
+	}
+	return nil
+}
+func printHelp() {
+	fmt.Println(`Usage:
+dbbuild html
+  Reads table structure from database and builds html table
+  env/clo: driver, hostname, database, username, password, schema, table
+dbbuild template
+  Reads table structure from database and builds html template
+  env/clo: driver, hostname, database, username, password, schema, table
+dbbuild yaml
+  Reads table structure from database and builds yaml
+  env/clo: driver, hostname, database, username, password, schema, [table]
+dbbuild sql
+  Creates sql to create/modify database from yaml file
+  env/clo: driver, hostname, database, username, password, file
+  reads yaml from file (--file=..) or stdin
+dbbuild dump
+  Dumps data to .csv
+  env/clo: driver, hostname, database, username, password, [schema], [table]
+dbbuild load
+  Loads data from .csv file into table
+  env/clo: driver, hostname, database, username, password, [file], [clear]`)
+}
+
+func ask(key string) string {
+	if s, ok := s[key]; ok {
+		return s
+	}
+	var ret string
+	fmt.Print("(" + os.Args[0] + ") " + key + ": ")
+	fmt.Scanln(&ret)
+	return ret
+}
+
+func readStdIn() ([]byte, error) {
+	fi, err := os.Stdin.Stat()
 	if err != nil {
-		log.Fatal(err)
+		return []byte{}, err
 	}
-	dbs = mysql.GetDatabaseNames(conn)
-	for _, db := range dbs {
-		fmt.Println(db)
+	if fi.Mode()&os.ModeNamedPipe == 0 {
+		return []byte{}, errors.New("No pipe")
 	}
-	fmt.Print("Database: ")
-	fmt.Scanln(&db)
-	tables = mysql.GetTableNames(conn, db)
-	for _, tbl := range tables {
-		fmt.Println(tbl)
-	}
-	fmt.Print("Table: ")
-	fmt.Scanln(&table)
-	return mysql.GetColumns(conn, db, table)
+	return ioutil.ReadAll(os.Stdin)
 }
