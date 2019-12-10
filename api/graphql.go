@@ -408,12 +408,12 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 			t := time.Now()
 			if t.Sub(res.time) < cacheExpire {
 				mutex.RUnlock()
-				log.Println("QUERY FROM CACHE:", query)
+				// log.Println("QUERY FROM CACHE:", query)
 				return res.results, nil
 			}
 		}
 		mutex.RUnlock()
-		log.Println("QUERY:", query)
+		// log.Println("QUERY:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
