@@ -398,8 +398,8 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 		var res qCache
 		var ok bool
 		var err error
-		query = "select * from " + schemaName + "." + tableName
-		where := args2whereSQL(params.Args, cols)
+		query = "select * from " + conn.Quote(schemaName+"."+tableName)
+		where := args2whereSQL(params.Args, cols, conn)
 		if len(where) > 0 {
 			query += " where" + where
 		}
@@ -408,12 +408,12 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 			t := time.Now()
 			if t.Sub(res.time) < cacheExpire {
 				mutex.RUnlock()
-				// log.Println("QUERY FROM CACHE:", query)
+				log.Println("QUERY FROM CACHE:", query)
 				return res.results, nil
 			}
 		}
 		mutex.RUnlock()
-		// log.Println("QUERY:", query)
+		log.Println("QUERY:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
@@ -515,7 +515,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 	}
 }
 
-func args2whereSQL(args map[string]interface{}, cols []db.Column) string {
+func args2whereSQL(args map[string]interface{}, cols []db.Column, conn db.Conn) string {
 	var ret string
 	var index int
 	for key, value := range args {
@@ -526,19 +526,19 @@ func args2whereSQL(args map[string]interface{}, cols []db.Column) string {
 					ret += " and"
 				}
 				if ok && strings.Contains(value.(string), "*") {
-					ret += " " + key + " like '" + db.Escape(strings.Replace(value.(string), "*", "%", -1)) + "'"
+					ret += " " + conn.Quote(key) + " like '" + db.Escape(strings.Replace(value.(string), "*", "%", -1)) + "'"
 				} else {
 					switch value.(type) {
 					case int:
-						ret += " " + key + "=" + strconv.Itoa(value.(int))
+						ret += " " + conn.Quote(key) + "=" + strconv.Itoa(value.(int))
 					case bool:
 						if value.(bool) == true {
-							ret += " " + key + "=1"
+							ret += " " + conn.Quote(key) + "=1"
 						} else {
-							ret += " " + key + "=0"
+							ret += " " + conn.Quote(key) + "=0"
 						}
 					default:
-						ret += " " + key + "='" + db.Escape(value.(string)) + "'"
+						ret += " " + conn.Quote(key) + "='" + db.Escape(value.(string)) + "'"
 					}
 				}
 			}
