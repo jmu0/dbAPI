@@ -510,7 +510,6 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 		queryCache[query] = res
 		mutex.Unlock()
 		// log.Println("QUERY:", query)
-
 		return res.results[0], nil
 	}
 }
@@ -557,7 +556,7 @@ func args2cols(args map[string]interface{}, cols []db.Column) {
 
 func deleteFromQueryCache(schemaName, tableName string) {
 	for q := range queryCache {
-		if strings.Contains(q, schemaName+"."+tableName) {
+		if strings.Contains(q, schemaName) && strings.Contains(q, tableName) {
 			// log.Println("CACHE DELETE:", q)
 			delete(queryCache, q)
 		}

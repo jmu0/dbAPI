@@ -39,8 +39,10 @@ func (rd *requestData) setColValues(cols []db.Column) error {
 		return errors.New("No form data")
 	}
 	for i, col := range cols {
-		if val, ok := rd.FormData[col.Name]; ok {
-			cols[i].Value = val
+		for k, v := range rd.FormData {
+			if strings.ToLower(k) == strings.ToLower(col.Name) {
+				cols[i].Value = v
+			}
 		}
 	}
 	return nil
@@ -260,6 +262,7 @@ func handlePut(c db.Conn, rd requestData, w http.ResponseWriter) {
 		if err != nil {
 			log.Println("REST error:", err)
 		}
+		deleteFromQueryCache(rd.SchemaName, rd.TableName)
 	} else {
 		http.Error(w, "Not found", http.StatusNotFound)
 		log.Println("REST error: invalid url")
@@ -304,11 +307,13 @@ func handlePost(c db.Conn, rd requestData, w http.ResponseWriter) {
 		if n == 0 {
 			http.Error(w, "Not found", http.StatusNotFound)
 			log.Println("REST error: not found: " + rd.SchemaName + "/" + rd.TableName + "/" + strings.Join(rd.PrimaryKeyValues, ":"))
+			return
 		}
 		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
 		}
+		deleteFromQueryCache(rd.SchemaName, rd.TableName)
 	} else {
 		http.Error(w, "Not found", http.StatusNotFound)
 		log.Println("REST error: invalid url")
@@ -346,11 +351,13 @@ func handleDelete(c db.Conn, rd requestData, w http.ResponseWriter) {
 		if n == 0 {
 			http.Error(w, "Not found", http.StatusNotFound)
 			log.Println("REST error: not found: " + rd.SchemaName + "/" + rd.TableName + "/" + strings.Join(rd.PrimaryKeyValues, ":"))
+			return
 		}
 		err = ServeExecuteResult(-1, n, w)
 		if err != nil {
 			log.Println("REST error:", err)
 		}
+		deleteFromQueryCache(rd.SchemaName, rd.TableName)
 	} else {
 		http.Error(w, "Not found", http.StatusNotFound)
 		log.Println("REST error: invalid url")
