@@ -4,13 +4,42 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/jmu0/dbAPI/db"
+	"github.com/jmu0/dbAPI/db/mysql"
+	"github.com/jmu0/dbAPI/db/postgresql"
+	"github.com/jmu0/settings"
 )
+
+//GetConnection connects to database from file/environment var./command line args.
+func GetConnection(filename string) (db.Conn, error) {
+	dbsettings := map[string]string{
+		"driver":   "",
+		"hostname": "",
+		"username": "",
+		"password": "",
+		"database": "",
+	}
+	settings.Load(filename, &dbsettings)
+	var conn db.Conn
+	if dbsettings["driver"] == "mysql" {
+		conn = &mysql.Conn{}
+	} else if dbsettings["driver"] == "postgresql" {
+		conn = &postgresql.Conn{}
+	} else {
+		log.Fatal("Invalid database driver.")
+	}
+	err = conn.Connect(dbsettings)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
 
 //ServeQuery does query and writes json to responseWriter
 func ServeQuery(con db.Conn, query string, w http.ResponseWriter) error {
