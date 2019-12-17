@@ -399,9 +399,7 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 		var ok bool
 		var err error
 		query = "select * from " + conn.Quote(schemaName+"."+tableName)
-		log.Println("DEBUG before args")
 		where := args2whereSQL(params.Args, cols, conn)
-		log.Println("DEBUG after args")
 		if len(where) > 0 {
 			query += " where" + where
 		}
@@ -410,12 +408,10 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 			t := time.Now()
 			if t.Sub(res.time) < cacheExpire {
 				mutex.RUnlock()
-				// log.Println("QUERY FROM CACHE:", query)
 				return res.results, nil
 			}
 		}
 		mutex.RUnlock()
-		log.Println("QUERY:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
@@ -529,8 +525,6 @@ func args2whereSQL(args map[string]interface{}, cols []db.Column, conn db.Conn) 
 				if ok && strings.Contains(value.(string), "*") {
 					ret += " " + conn.Quote(key) + " like '" + db.Escape(strings.Replace(value.(string), "*", "%", -1)) + "'"
 				} else {
-					log.Println("DEBUG val:", val)
-
 					switch value.(type) {
 					case int:
 						ret += " " + conn.Quote(key) + "=" + strconv.Itoa(value.(int))
