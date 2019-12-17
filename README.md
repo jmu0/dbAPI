@@ -11,6 +11,9 @@ Creates rest API from database model
 ### GraphQL
 Creates graphql API from database model
 
+Wildcard in arguments: *
+
+Logical operators in arguments: ! < > <= >= <> ||
 
 ## dbbuild
 - Read model from database into yaml file

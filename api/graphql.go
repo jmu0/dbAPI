@@ -399,7 +399,9 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 		var ok bool
 		var err error
 		query = "select * from " + conn.Quote(schemaName+"."+tableName)
+		log.Println("DEBUG before args")
 		where := args2whereSQL(params.Args, cols, conn)
+		log.Println("DEBUG after args")
 		if len(where) > 0 {
 			query += " where" + where
 		}
@@ -413,7 +415,7 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 			}
 		}
 		mutex.RUnlock()
-		// log.Println("QUERY:", query)
+		log.Println("QUERY:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
@@ -515,7 +517,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 }
 
 func args2whereSQL(args map[string]interface{}, cols []db.Column, conn db.Conn) string {
-	var ret string
+	var ret, orval string
 	var index int
 	for key, value := range args {
 		if val, ok := value.(string); val != "*" {
@@ -527,6 +529,8 @@ func args2whereSQL(args map[string]interface{}, cols []db.Column, conn db.Conn) 
 				if ok && strings.Contains(value.(string), "*") {
 					ret += " " + conn.Quote(key) + " like '" + db.Escape(strings.Replace(value.(string), "*", "%", -1)) + "'"
 				} else {
+					log.Println("DEBUG val:", val)
+
 					switch value.(type) {
 					case int:
 						ret += " " + conn.Quote(key) + "=" + strconv.Itoa(value.(int))
@@ -537,7 +541,34 @@ func args2whereSQL(args map[string]interface{}, cols []db.Column, conn db.Conn) 
 							ret += " " + conn.Quote(key) + "=0"
 						}
 					default:
-						ret += " " + conn.Quote(key) + "='" + db.Escape(value.(string)) + "'"
+						val = db.Escape(val)
+						if len(val) > 2 && val[:2] == ">=" {
+							ret += " " + conn.Quote(key) + " >= '" + val[2:] + "' "
+						} else if len(val) > 2 && val[:2] == "<=" {
+							ret += " " + conn.Quote(key) + " <= '" + val[2:] + "' "
+						} else if len(val) > 2 && val[:2] == "<>" {
+							ret += " " + conn.Quote(key) + " <> '" + val[2:] + "' "
+						} else if len(val) > 1 && val[:1] == ">" {
+							ret += " " + conn.Quote(key) + " > '" + val[1:] + "' "
+						} else if len(val) > 1 && val[:1] == "<" {
+							ret += " " + conn.Quote(key) + " < '" + val[1:] + "' "
+						} else if len(val) > 1 && val[:1] == "!" {
+							ret += " " + conn.Quote(key) + " <> '" + val[1:] + "' "
+						} else if len(val) > 3 && strings.Contains(val, "||") {
+							for _, o := range strings.Split(val, "||") {
+								if len(o) > 0 {
+									if len(orval) > 0 {
+										orval += " or "
+									}
+									orval += conn.Quote(key) + " = '" + o + "' "
+								}
+							}
+							if len(orval) > 0 {
+								ret += " (" + orval + ")"
+							}
+						} else {
+							ret += " " + conn.Quote(key) + " = '" + val + "' "
+						}
 					}
 				}
 			}
