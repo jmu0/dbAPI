@@ -156,7 +156,7 @@ func (tbl *dbTable) BuildRelationships(c db.Conn) {
 				tbl.Type.AddFieldConfig(relName, &graphql.Field{
 					Name:    relName,
 					Type:    graphql.NewList(relTbl.Type),
-					Resolve: resolveFuncOneToMany(r.FromTable, r.FromCols, c),
+					Resolve: resolveFuncOneToMany(r.FromTable, r.FromCols, r.ToCols, c),
 				})
 			}
 		} else if r.Cardinality == "many-to-one" {
@@ -412,6 +412,7 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 			}
 		}
 		mutex.RUnlock()
+		// log.Println("DEBUG query resolve:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
@@ -424,21 +425,23 @@ func resolveFunc(schemaName, tableName string, cols []db.Column, conn db.Conn) f
 	}
 }
 
-func resolveFuncOneToMany(tbl, cols string, conn db.Conn) func(params graphql.ResolveParams) (interface{}, error) {
+func resolveFuncOneToMany(tbl, fromcols, tocols string, conn db.Conn) func(params graphql.ResolveParams) (interface{}, error) {
 	return func(params graphql.ResolveParams) (interface{}, error) {
 		var query, where string
 		var res qCache
 		var err error
 		var ok bool
+		var toCols []string
 
-		query = "select * from " + tbl + " where "
-		for _, c := range strings.Split(cols, ", ") {
+		query = "select * from " + conn.Quote(tbl) + " where "
+		toCols = strings.Split(tocols, ", ")
+		for i, c := range strings.Split(fromcols, ", ") {
 			if param, ok := params.Source.(map[string]interface{}); ok {
-				if val, ok := param[c]; ok {
+				if val, ok := param[toCols[i]]; ok {
 					if len(where) > 0 {
 						where += " and "
 					}
-					where += c + "='" + db.Escape(val.(string)) + "'"
+					where += conn.Quote(c) + "='" + db.Escape(val.(string)) + "'"
 				}
 			}
 		}
@@ -453,7 +456,7 @@ func resolveFuncOneToMany(tbl, cols string, conn db.Conn) func(params graphql.Re
 			}
 		}
 		mutex.RUnlock()
-
+		// log.Println("DEBUG query one to many:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return res, err
@@ -473,7 +476,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 		var res qCache
 		var err error
 		var ok bool
-		query = "select * from " + tbl + " where "
+		query = "select * from " + conn.Quote(tbl) + " where "
 		fcSplit := strings.Split(fromCols, ", ")
 		for i, c := range strings.Split(toCols, ", ") {
 			if param, ok := params.Source.(map[string]interface{}); ok {
@@ -481,7 +484,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 					if len(where) > 0 {
 						where += " and "
 					}
-					where += c + "='" + db.Escape(val.(string)) + "'"
+					where += conn.Quote(c) + "='" + db.Escape(val.(string)) + "'"
 				}
 			}
 		}
@@ -496,6 +499,7 @@ func resolveFuncManyToOne(tbl, fromCols, toCols string, conn db.Conn) func(param
 			}
 		}
 		mutex.RUnlock()
+		// log.Println("DEBUG query many to one:", query)
 		res.results, err = conn.Query(query)
 		if err != nil {
 			return nil, err
