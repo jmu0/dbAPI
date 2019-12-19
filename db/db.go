@@ -34,6 +34,7 @@ type Conn interface {
 	AlterColumnSQL(schemaName, tableName string, col *Column) (string, error)
 	AddForeignKeySQL(schemaName, tableName string, fk *ForeignKey) string
 	DropForeignKeySQL(schemaName, tableName, keyName string) string
+	//TODO: Views
 }
 
 //Column holds column data
