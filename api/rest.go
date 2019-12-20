@@ -66,6 +66,9 @@ func RestHandler(pathPrefix string, c db.Conn) func(w http.ResponseWriter, r *ht
 		case "GET":
 			log.Println("GET", r.URL.Path)
 			handleGet(c, rd, w)
+		case "HEAD":
+			log.Println("HEAD", r.URL.Path)
+			handleHead(c, rd, w)
 		case "OPTIONS":
 			log.Println("OPTIONS", r.URL.Path)
 			handleOptions(w, r)
@@ -165,6 +168,44 @@ func handleOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(allow) > 0 {
 		w.Header().Set("Access-Control-Allow-Headers", allow)
+	}
+}
+
+func handleHead(c db.Conn, rd requestData, w http.ResponseWriter) {
+	if rd.SchemaName != "" && rd.TableName != "" {
+		if len(rd.PrimaryKeyValues) != 0 {
+			cols, err := c.GetColumns(rd.SchemaName, rd.TableName)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			err = rd.setPrimaryKeyValues(cols)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			q, err := c.SelectSQL(rd.SchemaName, rd.TableName, cols)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			result, err := c.Query(q)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			if len(result) == 0 {
+				http.Error(w, "Not found", http.StatusNotFound)
+				log.Println("REST error:", err)
+				return
+			}
+			w.Write([]byte("OK"))
+			return
+		}
 	}
 }
 
