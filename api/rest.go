@@ -149,7 +149,7 @@ func parseRequest(r *http.Request, pathPrefix string) (requestData, error) {
 	if err == nil {
 		rd.FormData = make(map[string]string)
 		for k, v := range r.Form {
-			rd.FormData[db.Escape(k)] = db.Escape(strings.Join(v, ""))
+			rd.FormData[db.Escape(k)] = strings.Join(v, "") //Value not escaped, is escaped when building query
 		}
 	}
 	return rd, nil
