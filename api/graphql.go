@@ -31,6 +31,8 @@ var queryCache map[string]qCache
 var mutex = &sync.RWMutex{}
 var cacheExpire = time.Second * 30
 
+//TODO: set read only
+
 //BuildSchemaArgs provides arguments for buildschema function
 type BuildSchemaArgs struct {
 	//Tables list of schema.table for schema
