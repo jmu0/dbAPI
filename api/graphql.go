@@ -588,8 +588,9 @@ func args2cols(args map[string]interface{}, cols []db.Column) {
 func deleteFromQueryCache(schemaName, tableName string) {
 	for q := range queryCache {
 		if strings.Contains(q, schemaName) && strings.Contains(q, tableName) {
-			// log.Println("CACHE DELETE:", q)
+			mutex.Lock()
 			delete(queryCache, q)
+			mutex.Unlock()
 		}
 	}
 }
