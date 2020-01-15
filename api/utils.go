@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"regexp"
@@ -50,7 +51,10 @@ func ServeQuery(con db.Conn, query string, w http.ResponseWriter) error {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return err
 	}
-
+	if len(result) == 0 {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return errors.New("No records found")
+	}
 	//return array or single object
 	if len(result) == 1 {
 		ret = result[0]
