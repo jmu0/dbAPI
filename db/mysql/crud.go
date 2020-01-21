@@ -29,7 +29,7 @@ func (conn *Conn) QuerySQL(schemaName, tableName string, query map[string]string
 	var where = ""
 	for k, v := range query {
 		if len(where) > 0 {
-			where += ", and "
+			where += " and "
 		}
 		if v[:2] == ">=" {
 			where += conn.Quote(k) + " >= '" + v[2:] + "' "
