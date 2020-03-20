@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/jmu0/dbAPI/db"
 )
@@ -81,6 +82,8 @@ func handleLoad() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println("Schema:", tbl.Schema)
+		fmt.Println("Table:", tbl.Name)
 		if _, ok := s["clear"]; ok {
 			err = deleteTableData(tbl, conn)
 			if err != nil {
@@ -246,6 +249,7 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 	query = "insert into " + conn.Quote(spl[0]+"."+spl[1]) + " ("
 	for i, s := range columns {
 		query += conn.Quote(s)
+		// query += s
 		values += "?"
 		if i < len(columns)-1 {
 			query += ", "
@@ -257,6 +261,12 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 	if err != nil {
 		return err
 	}
+	query = strings.Map(func(r rune) rune {
+		if unicode.IsGraphic(r) {
+			return r
+		}
+		return -1
+	}, query)
 
 	for {
 		spline, err := csv.Read()
@@ -280,6 +290,12 @@ func csv2table(fileName string, table db.Table, conn db.Conn) error {
 			tx.Rollback()
 			return errors.New("Inconsistent number of fields in file " + fileName + " " + strconv.Itoa(len(spline)) + "<>" + strconv.Itoa(len(columns)))
 		}
+		values := strings.Map(func(r rune) rune {
+			if unicode.IsGraphic(r) {
+				return r
+			}
+			return -1
+		}, values)
 		_, err = tx.Exec(query + " values (" + values + ");")
 		if err != nil {
 			tx.Rollback()
