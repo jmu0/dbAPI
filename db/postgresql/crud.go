@@ -108,7 +108,7 @@ func (conn *Conn) UpdateSQL(schemaName, tableName string, cols []db.Column) (str
 	fields := ""
 	for _, c := range cols {
 		if c.Value != nil {
-			if c.AutoIncrement == false {
+			if c.AutoIncrement == false && c.PrimaryKey == false {
 				if len(fields) > 0 {
 					fields += ", "
 				}
