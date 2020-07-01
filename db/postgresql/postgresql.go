@@ -301,6 +301,9 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 		schemaCache = make(map[string][]db.Column)
 	}
 	if _, ok := schemaCache[schemaName+"."+tableName]; ok {
+		for i := range schemaCache[schemaName+"."+tableName] {
+			schemaCache[schemaName+"."+tableName][i].Value = nil
+		}
 		return schemaCache[schemaName+"."+tableName], nil
 	}
 	query := fmt.Sprintf(`select c.column_name,

@@ -254,7 +254,7 @@ func (c *Conn) GetColumns(schemaName, tableName string) ([]db.Column, error) {
 	}
 	if _, ok := schemaCache[schemaName+"."+tableName]; ok {
 		for i := range schemaCache[schemaName+"."+tableName] {
-			schemaCache[schemaName+"."+tableName][i].Value = ""
+			schemaCache[schemaName+"."+tableName][i].Value = nil
 		}
 		return schemaCache[schemaName+"."+tableName], nil
 	}
