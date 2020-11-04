@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -33,7 +32,7 @@ func GetConnection(filename string) (db.Conn, error) {
 	} else if dbsettings["driver"] == "postgresql" {
 		conn = &postgresql.Conn{}
 	} else {
-		log.Fatal("Invalid database driver.")
+		return nil, errors.New("invalid database driver")
 	}
 	err = conn.Connect(dbsettings)
 	if err != nil {
