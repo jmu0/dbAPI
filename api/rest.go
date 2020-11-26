@@ -10,6 +10,7 @@ import (
 	"github.com/jmu0/dbAPI/db"
 )
 
+//TODO: lower case keys for schema/table/columns
 type requestData struct {
 	SchemaName       string
 	TableName        string
