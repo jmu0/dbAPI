@@ -42,6 +42,9 @@ type BuildSchemaArgs struct {
 
 //BuildSchema builds a schema from database
 func BuildSchema(args BuildSchemaArgs) (graphql.Schema, error) {
+	if args.Conn == nil {
+		return graphql.Schema{}, errors.New("No database connection")
+	}
 	if len(args.Tables) == 0 { //get all db/table
 		dbs, err := args.Conn.GetSchemaNames()
 		if err != nil {
