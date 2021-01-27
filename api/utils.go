@@ -5,7 +5,9 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,7 +27,15 @@ func GetConnection(filename string) (db.Conn, error) {
 		"password": "",
 		"database": "",
 	}
+	if Exists(filename) == false {
+		log.Println("DEBUG: no:", filename)
+		if Exists("/run/secrets/dblogin.conf") {
+			log.Println("DEBUG: using run/")
+			filename = "/run/secrets/dblogin.conf"
+		}
+	}
 	settings.Load(filename, &dbsettings)
+	log.Println("DEBUG:settings", dbsettings)
 	var conn db.Conn
 	if dbsettings["driver"] == "mysql" {
 		conn = &mysql.Conn{}
@@ -119,4 +129,12 @@ func findColIndex(field string, cols []db.Column) int {
 		}
 	}
 	return -1
+}
+
+//Exists find out if a file exists
+func Exists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) == false {
+		return true
+	}
+	return false
 }
