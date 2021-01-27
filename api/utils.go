@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -28,14 +27,14 @@ func GetConnection(filename string) (db.Conn, error) {
 		"database": "",
 	}
 	if Exists(filename) == false {
-		log.Println("DEBUG: no:", filename)
+		// log.Println("DEBUG: no:", filename)
 		if Exists("/run/secrets/dblogin.conf") {
-			log.Println("DEBUG: using run/")
+			// log.Println("DEBUG: using run/")
 			filename = "/run/secrets/dblogin.conf"
 		}
 	}
 	settings.Load(filename, &dbsettings)
-	log.Println("DEBUG:settings", dbsettings)
+	// log.Println("DEBUG:settings", dbsettings)
 	var conn db.Conn
 	if dbsettings["driver"] == "mysql" {
 		conn = &mysql.Conn{}
